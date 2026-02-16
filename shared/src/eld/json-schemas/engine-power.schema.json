@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cruzonic.io/schemas/eld/engine-power.schema.json",
+  "title": "ELD CMV Engine Power-Up / Shut-Down Event",
+  "description": "EventType 6 — Automatically recorded when the CMV's engine is powered on (key-on / ignition on) or powered off (key-off / engine shut-down). These events provide the bookends for each on-road session and are cross-referenced against duty-status changes to detect falsification (engine running while driver is Off Duty). Ref: 49 CFR §395.26(b), Appendix A §4.5.1.7.",
+  "allOf": [
+    { "$ref": "./_common.schema.json#/definitions/CommonEventBase" }
+  ],
+  "properties": {
+    "eventType": {
+      "title": "Event Type",
+      "description": "Must be 6 for engine power-up / shut-down events.",
+      "type": "integer",
+      "const": 6
+    },
+    "eventSubType": {
+      "title": "Engine Power Sub-Type",
+      "description": "1=Power-up with conventional GPS precision (within 1 mi). 2=Power-up with reduced GPS precision (within 10 mi). 3=Shut-down with conventional precision. 4=Shut-down with reduced precision.",
+      "type": "integer",
+      "enum": [1, 2, 3, 4],
+      "enumDescriptions": [
+        "Engine power-up — conventional location precision",
+        "Engine power-up — reduced location precision (GPS unavailable)",
+        "Engine shut-down — conventional location precision",
+        "Engine shut-down — reduced location precision (GPS unavailable)"
+      ]
+    },
+    "cmvPowerUnitNumber": {
+      "$ref": "./_common.schema.json#/definitions/CMVPowerUnitNumber"
+    },
+    "vin": {
+      "$ref": "./_common.schema.json#/definitions/VIN"
+    },
+    "licensePlate": {
+      "$ref": "./_common.schema.json#/definitions/LicensePlate"
+    },
+    "licensePlateState": {
+      "$ref": "./_common.schema.json#/definitions/LicensePlateState"
+    },
+    "trailerNumbers": {
+      "title": "Trailer Numbers",
+      "description": "Up to two trailer unit numbers coupled to the CMV at power-up / shut-down. Empty array if no trailer.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 10
+      },
+      "maxItems": 2,
+      "uniqueItems": true,
+      "default": []
+    },
+    "annotation": {
+      "$ref": "./_common.schema.json#/definitions/Annotation"
+    },
+    "isPowerUp": {
+      "title": "Is Power-Up",
+      "description": "Convenience flag. True for power-up events (sub-type 1 or 2). False for shut-down events (sub-type 3 or 4).",
+      "type": "boolean"
+    },
+    "odometerAtEvent": {
+      "title": "Odometer at Engine Event",
+      "description": "Engine-reported odometer reading in miles at the exact moment of power-up or shut-down. Cross-references accumulatedVehicleMiles to detect odometer rollbacks.",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 9999999.9
+    },
+    "engineHoursAtEvent": {
+      "title": "Engine Hours at Engine Event",
+      "description": "Engine-reported total hours at the exact moment of power-up or shut-down. Cross-references elapsedEngineHours.",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 999999.9
+    },
+    "canBusConnected": {
+      "title": "CAN Bus Connected",
+      "description": "True when the ELD successfully established synchronization with the ECM via J1939 or J1708 at power-up. False triggers Engine Synchronization diagnostic code (E).",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "eventType",
+    "eventSubType",
+    "cmvPowerUnitNumber",
+    "vin",
+    "isPowerUp",
+    "canBusConnected"
+  ],
+  "examples": [
+    {
+      "eventSequenceId": 2,
+      "eventRecordStatus": 1,
+      "eventRecordOrigin": 1,
+      "eventType": 6,
+      "eventSubType": 1,
+      "cmvPowerUnitNumber": "TRUCK-042",
+      "vin": "1HGBH41JXMN109186",
+      "licensePlate": "IL-ABC1234",
+      "licensePlateState": "IL",
+      "trailerNumbers": ["TRAIL-881"],
+      "isPowerUp": true,
+      "odometerAtEvent": 48300.0,
+      "engineHoursAtEvent": 4520.0,
+      "canBusConnected": true,
+      "annotation": "",
+      "eventDate": "061224",
+      "eventTime": "125500",
+      "timezoneOffset": "-0600",
+      "accumulatedVehicleMiles": 48300.0,
+      "elapsedEngineHours": 4520.0,
+      "location": {
+        "latitude": 41.878114,
+        "longitude": -87.629799,
+        "locationDescription": "Chicago, IL",
+        "distanceSinceLastValidCoordinates": null
+      },
+      "vehicle": {
+        "cmvPowerUnitNumber": "TRUCK-042",
+        "vin": "1HGBH41JXMN109186"
+      },
+      "driver": {
+        "driverEldAccountId": "jsmith",
+        "carrierDotNumber": "1234567"
+      },
+      "eldRegistrationId": "PACTRKV1",
+      "malfunctionIndicatorStatus": false,
+      "eldMalfunctionStatus": false,
+      "dataDiagnosticIndicatorStatus": false,
+      "eventDataCheckValue": "91"
+    }
+  ]
+}

@@ -1,0 +1,1383 @@
+openapi: "3.1.0"
+
+info:
+  title: Cruzonic Fleet Management API
+  version: "1.0.0"
+  description: |
+    Versioned REST API contract for the Cruzonic Fleet Management Platform.
+
+    **Locked version:** v1.0.0
+    **Contract registry:** /contracts/README.md
+
+    ## Authentication
+    All endpoints require a Supabase-issued JWT passed as a Bearer token.
+    The JWT encodes `sub` (user UUID), `role`, and `carrier_id` claims.
+    The backend validates the token using the Supabase JWT secret.
+
+    ## Versioning
+    Include `X-Contract-Version: 1.0.0` on every request.
+    The server logs a warning (but does not reject) requests missing this header.
+
+    ## Rate limits
+    - Event ingestion: 500 events/minute per device
+    - Query endpoints: 120 requests/minute per user
+    - Compliance export: 10 requests/minute per carrier
+    Rate limit state is returned in `X-RateLimit-*` response headers.
+
+    ## Error format
+    All errors return `application/json` with the `ApiError` schema (see components).
+
+  contact:
+    name: Cruzonic Engineering
+    email: engineering@cruzonic.io
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.cruzonic.io/v1
+    description: Production
+  - url: https://api.staging.cruzonic.io/v1
+    description: Staging
+  - url: http://localhost:3000/v1
+    description: Local development
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECURITY
+# ─────────────────────────────────────────────────────────────────────────────
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase-issued JWT. Obtain via POST /auth/v1/token (Supabase Auth API).
+
+  headers:
+    X-Contract-Version:
+      description: Contract version the client was built against (e.g. "1.0.0").
+      schema:
+        type: string
+        pattern: '^\d+\.\d+\.\d+$'
+    X-RateLimit-Limit:
+      description: Maximum number of requests allowed in the current window.
+      schema:
+        type: integer
+    X-RateLimit-Remaining:
+      description: Remaining requests in the current window.
+      schema:
+        type: integer
+    X-RateLimit-Reset:
+      description: Unix timestamp when the rate limit window resets.
+      schema:
+        type: integer
+
+  # ── Reusable parameters ───────────────────────────────────────────────────
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: 1-based page number for paginated responses.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    LimitParam:
+      name: limit
+      in: query
+      description: Maximum number of items per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    DriverIdParam:
+      name: driverId
+      in: path
+      required: true
+      description: UUID of the driver.
+      schema:
+        type: string
+        format: uuid
+    LogPeriodIdParam:
+      name: logPeriodId
+      in: path
+      required: true
+      description: UUID of the log period.
+      schema:
+        type: string
+        format: uuid
+
+  # ── Reusable schemas ──────────────────────────────────────────────────────
+
+  schemas:
+
+    # ── Errors ───────────────────────────────────────────────────────────────
+
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code.
+          examples: [VALIDATION_ERROR, RATE_LIMITED, UNAUTHORIZED, NOT_FOUND, SEQUENCE_DUPLICATE]
+        message:
+          type: string
+          description: Human-readable explanation.
+        details:
+          type: array
+          description: Field-level validation errors (present for VALIDATION_ERROR only).
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+                description: Dot-notation path to the invalid field.
+              message:
+                type: string
+        requestId:
+          type: string
+          description: Unique ID for this request — include in bug reports.
+
+    # ── Pagination envelope ───────────────────────────────────────────────────
+
+    PaginationMeta:
+      type: object
+      required: [page, limit, total, totalPages]
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+          description: Total number of matching records across all pages.
+        totalPages:
+          type: integer
+
+    # ── ELD event (shared fields) ─────────────────────────────────────────────
+
+    EldEventCommon:
+      type: object
+      description: Fields present on every ELD event regardless of type.
+      required:
+        - eventSequenceId
+        - eventRecordStatus
+        - eventRecordOrigin
+        - eventType
+        - eventSubType
+        - eventDate
+        - eventTime
+        - timezoneOffset
+        - accumulatedVehicleMiles
+        - elapsedEngineHours
+        - location
+        - vehicle
+        - driver
+        - eldRegistrationId
+        - malfunctionIndicatorStatus
+        - eldMalfunctionStatus
+        - dataDiagnosticIndicatorStatus
+        - eventDataCheckValue
+      properties:
+        eventSequenceId:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          description: Monotonically increasing per (eldDeviceId × logDate). Resets at midnight home-terminal time.
+        eventRecordStatus:
+          type: integer
+          enum: [1, 2, 3, 4]
+          description: "1=Active 2=Inactive-Changed 3=Inactive-ChangeRequested 4=Inactive-AssumedUnidentified"
+        eventRecordOrigin:
+          type: integer
+          enum: [1, 2, 3, 4]
+          description: "1=AutoRecorded 2=DriverEdit 3=OtherUserEdit 4=UnidentifiedDriver"
+        eventType:
+          type: integer
+          enum: [1, 2, 3, 4, 5, 6, 7]
+          description: "1=DutyStatus 2=IntermediateLog 3=PersonalUse/YardMoves 4=Certification 5=Login/Logout 6=EnginePower 7=Malfunction/Diagnostic"
+        eventSubType:
+          type: integer
+          minimum: 1
+          description: Secondary classification — interpretation depends on eventType.
+        eventDate:
+          type: string
+          pattern: '^(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{2}$'
+          description: Calendar date MMDDYY in home-terminal timezone.
+          examples: ["061224"]
+        eventTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3])[0-5][0-9][0-5][0-9]$'
+          description: Event time HHMMSS in UTC.
+          examples: ["140000"]
+        timezoneOffset:
+          type: string
+          pattern: '^[+-](0[0-9]|1[0-4])[0-5][0-9]$'
+          description: Home-terminal UTC offset (±HHMM).
+          examples: ["-0600"]
+        accumulatedVehicleMiles:
+          type: number
+          minimum: 0
+          description: Engine-reported odometer in miles (1 decimal).
+        elapsedEngineHours:
+          type: number
+          minimum: 0
+          description: Engine-reported total hours (1 decimal).
+        location:
+          $ref: '#/components/schemas/LocationPayload'
+        vehicle:
+          $ref: '#/components/schemas/VehiclePayload'
+        driver:
+          $ref: '#/components/schemas/DriverPayload'
+        eldRegistrationId:
+          type: string
+          maxLength: 8
+          description: FMCSA-assigned ELD device registration ID.
+          examples: ["PACTRKV1"]
+        malfunctionIndicatorStatus:
+          type: boolean
+        eldMalfunctionStatus:
+          type: boolean
+        dataDiagnosticIndicatorStatus:
+          type: boolean
+        eventDataCheckValue:
+          type: string
+          pattern: '^[0-9A-Fa-f]{2}$'
+          description: Two-hex-char FMCSA checksum (Appendix A §7.3.2).
+        annotation:
+          type: string
+          maxLength: 60
+          description: Optional driver annotation.
+
+    LocationPayload:
+      type: object
+      required: [latitude, longitude, locationDescription, distanceSinceLastValidCoordinates]
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+          nullable: true
+          description: WGS-84 decimal degrees. Null when GPS unavailable.
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+          nullable: true
+        locationDescription:
+          type: string
+          maxLength: 60
+          description: Nearest city/state description.
+          examples: ["Chicago, IL"]
+        distanceSinceLastValidCoordinates:
+          type: number
+          minimum: 0
+          nullable: true
+          description: Tenths of a mile since last GPS fix. Required when lat/lon is null.
+
+    VehiclePayload:
+      type: object
+      required: [cmvPowerUnitNumber, vin]
+      properties:
+        cmvPowerUnitNumber:
+          type: string
+          maxLength: 10
+        vin:
+          type: string
+          minLength: 17
+          maxLength: 17
+          pattern: '^[A-HJ-NPR-Z0-9]{17}$'
+        licensePlate:
+          type: string
+          maxLength: 12
+        licensePlateState:
+          type: string
+          pattern: '^[A-Z]{2}$'
+
+    DriverPayload:
+      type: object
+      required: [driverEldAccountId, carrierDotNumber]
+      properties:
+        driverEldAccountId:
+          type: string
+          maxLength: 60
+        coDriverEldAccountId:
+          type: string
+          maxLength: 60
+        carrierDotNumber:
+          type: string
+          pattern: '^[0-9]{1,8}$'
+
+    EldEventResponse:
+      allOf:
+        - $ref: '#/components/schemas/EldEventCommon'
+      type: object
+      required: [id, logPeriodId, carrierId, createdAt, versionNumber, originalVersionId]
+      properties:
+        id:
+          type: string
+          format: uuid
+        logPeriodId:
+          type: string
+          format: uuid
+        carrierId:
+          type: string
+          format: uuid
+        versionNumber:
+          type: integer
+          minimum: 1
+        previousVersionId:
+          type: string
+          format: uuid
+          nullable: true
+        originalVersionId:
+          type: string
+          format: uuid
+        contentHash:
+          type: string
+          description: SHA-256 hex of canonical event data fields.
+        chainHash:
+          type: string
+          description: SHA-256 chain hash linking this record to its predecessor.
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Log period ─────────────────────────────────────────────────────────────
+
+    LogPeriodResponse:
+      type: object
+      required: [id, carrierId, driverId, logDate, logDateMmddyy, status, totalEventCount, hosRuleset, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        carrierId:
+          type: string
+          format: uuid
+        driverId:
+          type: string
+          format: uuid
+        logDate:
+          type: string
+          format: date
+          description: ISO 8601 date (calendar date in home-terminal timezone).
+        logDateMmddyy:
+          type: string
+          pattern: '^(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{2}$'
+        homeTerminalTimezone:
+          type: string
+          description: IANA timezone string.
+        status:
+          type: string
+          enum: [open, closed, certified, recertified]
+        totalEventCount:
+          type: integer
+          minimum: 0
+        hosRuleset:
+          type: string
+          enum: [property_60h, property_70h, passenger_60h, passenger_70h]
+        certifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        recertifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ── HOS current status ────────────────────────────────────────────────────
+
+    HosCurrentResponse:
+      type: object
+      required:
+        - driverId
+        - currentDutyStatus
+        - calculatedAt
+        - hosRuleset
+        - drivingMinutesToday
+        - onDutyMinutesToday
+        - remainingDrivingMinutes
+        - remainingOnDutyWindowMinutes
+        - remainingWeeklyMinutes
+        - consecutiveOffDutyMinutes
+      properties:
+        driverId:
+          type: string
+          format: uuid
+        currentDutyStatus:
+          type: integer
+          enum: [1, 2, 3, 4]
+          description: "1=OffDuty 2=SleeperBerth 3=Driving 4=OnDutyNotDriving"
+        calculatedAt:
+          type: string
+          format: date-time
+        hosRuleset:
+          type: string
+          enum: [property_60h, property_70h, passenger_60h, passenger_70h]
+        drivingMinutesToday:
+          type: integer
+        onDutyMinutesToday:
+          type: integer
+        drivingMinutes7day:
+          type: integer
+        onDutyMinutes7day:
+          type: integer
+        remainingDrivingMinutes:
+          type: integer
+          nullable: true
+          description: Minutes until 11-hour driving limit. Null for passenger ruleset.
+        remainingOnDutyWindowMinutes:
+          type: integer
+          nullable: true
+          description: Minutes until 14-hour on-duty window expires.
+        remainingWeeklyMinutes:
+          type: integer
+          nullable: true
+          description: Minutes remaining in 60h/70h weekly limit.
+        timeUntilBreakRequiredMinutes:
+          type: integer
+          nullable: true
+          description: Minutes until mandatory 30-min break. Null if break not yet required.
+        consecutiveOffDutyMinutes:
+          type: integer
+        isIn34hRestart:
+          type: boolean
+        restartEligibleAt:
+          type: string
+          format: date-time
+          nullable: true
+        isAdverseConditionsActive:
+          type: boolean
+        isShortHaulActive:
+          type: boolean
+
+    # ── Compliance export ──────────────────────────────────────────────────────
+
+    ComplianceExportResponse:
+      type: object
+      required: [id, logPeriodId, driverId, erodUrl, generatedAt, totalEventCount, contentSha256]
+      properties:
+        id:
+          type: string
+          format: uuid
+        logPeriodId:
+          type: string
+          format: uuid
+        driverId:
+          type: string
+          format: uuid
+        erodUrl:
+          type: string
+          format: uri
+          description: Signed URL to download the .erod file (valid for 15 minutes).
+        pdfUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: Signed URL to download the PDF driver log.
+        fileVersion:
+          type: string
+          description: FMCSA ELD Technical Spec version.
+          examples: ["1.1.0"]
+        totalEventCount:
+          type: integer
+        contentSha256:
+          type: string
+          description: SHA-256 hex of the .erod file for integrity verification.
+        generatedAt:
+          type: string
+          format: date-time
+
+    # ── Sequence ID ────────────────────────────────────────────────────────────
+
+    SequenceIdReservationResponse:
+      type: object
+      required: [eldDeviceId, logDate, firstId, lastId, count]
+      properties:
+        eldDeviceId:
+          type: string
+          description: FMCSA ELD device registration ID.
+        logDate:
+          type: string
+          pattern: '^(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{2}$'
+          description: Log period date MMDDYY.
+        firstId:
+          type: integer
+          description: First ID in the reserved block.
+        lastId:
+          type: integer
+          description: Last ID in the reserved block (inclusive).
+        count:
+          type: integer
+          description: Number of IDs reserved.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Reservation expires if not used by this time. IDs are reclaimed if unused.
+
+    # ── Sync ──────────────────────────────────────────────────────────────────
+
+    SyncBatchRequest:
+      type: object
+      required: [deviceId, events, syncedUpToAt]
+      properties:
+        deviceId:
+          type: string
+          description: ELD device registration ID or mobile device identifier.
+        syncedUpToAt:
+          type: string
+          format: date-time
+          description: The client's last successful sync timestamp. The server returns any server-side changes since this point.
+        events:
+          type: array
+          maxItems: 500
+          description: Ordered array of buffered ELD events (earliest first).
+          items:
+            $ref: '#/components/schemas/EldEventCommon'
+
+    SyncBatchResponse:
+      type: object
+      required: [accepted, rejected, serverEvents, newSyncedUpToAt]
+      properties:
+        accepted:
+          type: array
+          description: IDs of events that were successfully ingested.
+          items:
+            type: integer
+            description: eventSequenceId of the accepted event.
+        rejected:
+          type: array
+          description: Events that were rejected, with reasons.
+          items:
+            type: object
+            required: [eventSequenceId, errors]
+            properties:
+              eventSequenceId:
+                type: integer
+              errors:
+                type: array
+                items:
+                  type: object
+                  required: [code, message]
+                  properties:
+                    code:
+                      type: string
+                      enum:
+                        - DUPLICATE
+                        - NON_MONOTONIC
+                        - OUT_OF_RANGE
+                        - INVALID_CHECKSUM
+                        - SCHEMA_VALIDATION_ERROR
+                        - WRONG_SCOPE
+                    message:
+                      type: string
+        serverEvents:
+          type: array
+          description: ELD events that originated on the server side (carrier edits, etc.) since syncedUpToAt. The client must merge these.
+          items:
+            $ref: '#/components/schemas/EldEventResponse'
+        newSyncedUpToAt:
+          type: string
+          format: date-time
+          description: Client must persist this and send it in the next sync request.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+
+paths:
+
+  # ── ELD Event Ingestion ─────────────────────────────────────────────────────
+
+  /eld/events:
+    post:
+      operationId: ingestEldEvents
+      summary: Ingest a batch of ELD events
+      description: |
+        Accepts up to 100 ELD events per request. Events must be ordered by
+        `eventSequenceId` ascending within each (eldDeviceId × logDate) scope.
+
+        **Partial acceptance:** The server processes each event independently.
+        Events that fail validation are rejected with per-event error details;
+        valid events in the same batch are still accepted. The response lists
+        all accepted and rejected sequence IDs.
+
+        **Idempotency:** Duplicate events (same eldDeviceId + logDate + eventSequenceId
+        with identical content) are silently accepted and counted as successful
+        (the server returns the existing record ID). Duplicates with *different*
+        content are rejected with code `DUPLICATE`.
+
+        **Rate limit:** 500 events per minute per device.
+      tags: [ELD Events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    $ref: '#/components/schemas/EldEventCommon'
+            examples:
+              dutyStatusChange:
+                summary: Single duty-status change (driver started driving)
+                value:
+                  events:
+                    - eventSequenceId: 5
+                      eventRecordStatus: 1
+                      eventRecordOrigin: 1
+                      eventType: 1
+                      eventSubType: 3
+                      eventDate: "061224"
+                      eventTime: "140000"
+                      timezoneOffset: "-0600"
+                      accumulatedVehicleMiles: 48321.4
+                      elapsedEngineHours: 4521.2
+                      location:
+                        latitude: 41.878114
+                        longitude: -87.629799
+                        locationDescription: "Chicago, IL"
+                        distanceSinceLastValidCoordinates: null
+                      vehicle:
+                        cmvPowerUnitNumber: "TRUCK-042"
+                        vin: "1HGBH41JXMN109186"
+                      driver:
+                        driverEldAccountId: "jsmith"
+                        carrierDotNumber: "1234567"
+                      eldRegistrationId: "PACTRKV1"
+                      malfunctionIndicatorStatus: false
+                      eldMalfunctionStatus: false
+                      dataDiagnosticIndicatorStatus: false
+                      eventDataCheckValue: "3C"
+                      driverEldAccountId: "jsmith"
+      responses:
+        "207":
+          description: Multi-status — some events accepted, some rejected.
+          headers:
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/X-RateLimit-Limit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/X-RateLimit-Remaining'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted, rejected]
+                properties:
+                  accepted:
+                    type: array
+                    items:
+                      type: object
+                      required: [eventSequenceId, id]
+                      properties:
+                        eventSequenceId:
+                          type: integer
+                        id:
+                          type: string
+                          format: uuid
+                          description: Server-assigned UUID for this event record.
+                  rejected:
+                    type: array
+                    items:
+                      type: object
+                      required: [eventSequenceId, errors]
+                      properties:
+                        eventSequenceId:
+                          type: integer
+                        errors:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/ApiError'
+        "401":
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        "429":
+          description: Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+    get:
+      operationId: queryEldEvents
+      summary: Query ELD events
+      description: |
+        Returns ELD event records for the authenticated user's scope.
+        Drivers see only their own events; fleet managers see their carrier's events.
+
+        **Default:** returns only active records (`eventRecordStatus=1`).
+        Pass `includeInactive=true` to include superseded versions.
+      tags: [ELD Events]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: driverId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: logPeriodId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: eventType
+          in: query
+          description: Filter by event type (1–7). Repeatable for multiple types.
+          schema:
+            type: array
+            items:
+              type: integer
+              minimum: 1
+              maximum: 7
+          style: form
+          explode: true
+        - name: eventDate
+          in: query
+          description: Filter by log date (MMDDYY).
+          schema:
+            type: string
+            pattern: '^(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{2}$'
+        - name: fromDate
+          in: query
+          description: Filter events on or after this ISO 8601 date (inclusive).
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          description: Filter events on or before this ISO 8601 date (inclusive).
+          schema:
+            type: string
+            format: date
+        - name: includeInactive
+          in: query
+          description: When true, includes superseded (inactive) versions of edited records.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Paginated list of ELD events.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EldEventResponse'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /eld/events/{eventId}:
+    get:
+      operationId: getEldEvent
+      summary: Get a single ELD event by ID
+      description: Returns the active version of an event. Includes its full edit history if `includeHistory=true`.
+      tags: [ELD Events]
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: includeHistory
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EldEventResponse'
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # ── Sequence ID ─────────────────────────────────────────────────────────────
+
+  /eld/sequence-ids/reserve:
+    post:
+      operationId: reserveSequenceIds
+      summary: Reserve a block of sequence IDs for offline use
+      description: |
+        Reserves a contiguous block of sequence IDs for a given
+        (eldDeviceId × logDate) scope. The mobile app calls this before
+        going offline to pre-allocate IDs for events it will generate
+        while disconnected.
+
+        Reserved IDs expire after 26 hours (one log period + 2 hours buffer).
+        Expired reservations are reclaimed automatically; no partial blocks
+        are reserved — the full requested count is either granted or the call
+        fails.
+      tags: [ELD Events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eldDeviceId, logDate, count]
+              properties:
+                eldDeviceId:
+                  type: string
+                  maxLength: 8
+                  description: FMCSA-registered ELD device ID.
+                logDate:
+                  type: string
+                  pattern: '^(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{2}$'
+                count:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  description: Number of IDs to reserve.
+      responses:
+        "201":
+          description: IDs reserved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SequenceIdReservationResponse'
+        "409":
+          description: Insufficient IDs remaining in this log period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # ── Log Periods ─────────────────────────────────────────────────────────────
+
+  /log-periods:
+    get:
+      operationId: listLogPeriods
+      summary: List log periods
+      tags: [Log Periods]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: driverId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, closed, certified, recertified]
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LogPeriodResponse'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /log-periods/{logPeriodId}:
+    get:
+      operationId: getLogPeriod
+      summary: Get a single log period
+      tags: [Log Periods]
+      parameters:
+        - $ref: '#/components/parameters/LogPeriodIdParam'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogPeriodResponse'
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /log-periods/{logPeriodId}/certify:
+    post:
+      operationId: certifyLogPeriod
+      summary: Driver certifies a log period
+      description: |
+        Records the driver's certification that all events in this log period
+        are accurate. Triggers an EventType 4 (Certification) ELD event to be
+        stored. Generates a SHA-256 hash of the total event count as an integrity
+        commitment.
+
+        After certification, any subsequent edits must re-certify the period
+        (call this endpoint again with `isRecertification: true`).
+
+        **Who can call:** Only the driver who owns the log period, or a co-driver
+        for co-driver certification.
+      tags: [Log Periods]
+      parameters:
+        - $ref: '#/components/parameters/LogPeriodIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [certificationSubType, certifiedLogDate]
+              properties:
+                certificationSubType:
+                  type: integer
+                  enum: [1, 2]
+                  description: "1=Own records, 2=Co-driver records"
+                certifiedLogDate:
+                  type: string
+                  pattern: '^(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{2}$'
+                isRecertification:
+                  type: boolean
+                  default: false
+      responses:
+        "201":
+          description: Certification recorded. Returns the generated ELD event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EldEventResponse'
+        "409":
+          description: Log period already certified and no changes have been made since last certification.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # ── HOS ─────────────────────────────────────────────────────────────────────
+
+  /hos/{driverId}/current:
+    get:
+      operationId: getHosCurrent
+      summary: Get current HOS status for a driver
+      description: |
+        Returns the live HOS window calculations for a driver — remaining
+        driving time, on-duty window, weekly limit, etc. Used by the mobile
+        app to display the HOS clock and by the portal for the fleet dashboard.
+
+        Calculations are recomputed on every call (not cached) to ensure accuracy.
+      tags: [HOS]
+      parameters:
+        - $ref: '#/components/parameters/DriverIdParam'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HosCurrentResponse'
+
+  /hos/{driverId}/violations:
+    get:
+      operationId: listHosViolations
+      summary: List HOS violations for a driver
+      tags: [HOS]
+      parameters:
+        - $ref: '#/components/parameters/DriverIdParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: active
+          in: query
+          description: When true, returns only unresolved (ongoing) violations.
+          schema:
+            type: boolean
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, violationType, severity, startedAt]
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        violationType:
+                          type: string
+                          enum:
+                            - DRIVING_LIMIT_EXCEEDED
+                            - ON_DUTY_WINDOW_EXCEEDED
+                            - BREAK_VIOLATION
+                            - WEEKLY_LIMIT_EXCEEDED
+                            - INSUFFICIENT_OFF_DUTY
+                            - FALSIFICATION_SUSPECTED
+                            - UNASSIGNED_DRIVING_TIME
+                        severity:
+                          type: string
+                          enum: [warning, violation]
+                        startedAt:
+                          type: string
+                          format: date-time
+                        endedAt:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        durationMinutes:
+                          type: integer
+                          nullable: true
+                        details:
+                          type: object
+                          additionalProperties: true
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  # ── Compliance ───────────────────────────────────────────────────────────────
+
+  /compliance/export:
+    post:
+      operationId: exportCompliance
+      summary: Generate a FMCSA-compliant .erod file for a log period
+      description: |
+        Triggers the Compliance Output Generator to produce and sign an .erod
+        file for the specified driver and log period. The generated file is
+        stored in Supabase Storage and the signed URL is returned.
+
+        Subsequent calls for the same log period return the existing record
+        unless `force: true` is passed (only allowed for fleet managers and
+        admins — triggers a recertification requirement).
+
+        **Rate limit:** 10 requests/minute per carrier.
+      tags: [Compliance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [driverId, logPeriodId]
+              properties:
+                driverId:
+                  type: string
+                  format: uuid
+                logPeriodId:
+                  type: string
+                  format: uuid
+                force:
+                  type: boolean
+                  default: false
+                  description: Regenerate even if a finalized record already exists.
+      responses:
+        "201":
+          description: .erod file generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceExportResponse'
+        "200":
+          description: Existing .erod record returned (no regeneration needed).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceExportResponse'
+        "409":
+          description: Log period not yet certified by driver.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /compliance/records/{logPeriodId}:
+    get:
+      operationId: getComplianceRecord
+      summary: Get the finalized .erod record for a log period
+      tags: [Compliance]
+      parameters:
+        - $ref: '#/components/parameters/LogPeriodIdParam'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceExportResponse'
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # ── Sync ─────────────────────────────────────────────────────────────────────
+
+  /sync/events:
+    post:
+      operationId: syncEvents
+      summary: Offline event sync (drain offline buffer)
+      description: |
+        Drains the mobile app's offline event buffer to the server in a single
+        atomic request. See `/contracts/v1/sync-protocol.md` for the full
+        protocol specification including conflict resolution and retry strategy.
+
+        Events must be sorted by `(logDate ASC, eventSequenceId ASC)`.
+        Maximum 500 events per request.
+      tags: [Sync]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncBatchRequest'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncBatchResponse'
+        "400":
+          description: Batch validation error (e.g. events not ordered correctly).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /sync/status:
+    get:
+      operationId: getSyncStatus
+      summary: Get sync state for the authenticated device
+      description: Returns the server's last-seen sync timestamp and any pending server-side changes the client has not yet pulled.
+      tags: [Sync]
+      parameters:
+        - name: deviceId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deviceId, lastSyncAt, pendingServerEvents]
+                properties:
+                  deviceId:
+                    type: string
+                  lastSyncAt:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  pendingServerEvents:
+                    type: integer
+                    description: Number of server-side changes waiting to be pulled by this device.
+
+  # ── ELD Malfunctions ─────────────────────────────────────────────────────────
+
+  /eld/malfunctions:
+    post:
+      operationId: reportMalfunction
+      summary: Report an ELD malfunction or diagnostic event
+      description: |
+        Records a new malfunction or data-diagnostic condition detected by the
+        ELD device. This triggers the EventType 7 event pipeline and activates
+        the appropriate malfunction indicator in the driver's HOS display.
+      tags: [ELD Malfunctions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isMalfunction, isActive, baseEvent]
+              properties:
+                isMalfunction:
+                  type: boolean
+                isActive:
+                  type: boolean
+                malfunctionCode:
+                  type: string
+                  enum: [P, E, T, L, R, S, O]
+                  description: Required when isMalfunction=true.
+                diagnosticCode:
+                  type: string
+                  enum: ["1", "2", "3", "4", "5", "6"]
+                  description: Required when isMalfunction=false.
+                baseEvent:
+                  $ref: '#/components/schemas/EldEventCommon'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EldEventResponse'
+
+  # ── Unidentified Driving ──────────────────────────────────────────────────────
+
+  /eld/unidentified-driving:
+    get:
+      operationId: listUnidentifiedDriving
+      summary: List unidentified driving records
+      description: Returns unassigned driving periods for the authenticated carrier or driver.
+      tags: [Unidentified Driving]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, claimed, rejected, expired]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, vehicleId, startedAt, status, accumulatedMiles]
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        vehicleId:
+                          type: string
+                          format: uuid
+                        startedAt:
+                          type: string
+                          format: date-time
+                        endedAt:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        durationMinutes:
+                          type: integer
+                          nullable: true
+                        accumulatedMiles:
+                          type: number
+                        status:
+                          type: string
+                          enum: [pending, claimed, rejected, expired]
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /eld/unidentified-driving/{recordId}/claim:
+    post:
+      operationId: claimUnidentifiedDriving
+      summary: Driver claims or rejects an unidentified driving record
+      description: |
+        Called after a driver logs in and reviews unidentified driving time
+        on the vehicle they just logged into. The driver either claims the
+        driving as their own or rejects it. Ref: 49 CFR §395.30(c).
+      tags: [Unidentified Driving]
+      parameters:
+        - name: recordId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  enum: [claim, reject]
+                rejectionReason:
+                  type: string
+                  description: Required when decision=reject. Explains why the driver is not claiming this time.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [recordId, status]
+                properties:
+                  recordId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [claimed, rejected]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAGS
+# ─────────────────────────────────────────────────────────────────────────────
+
+tags:
+  - name: ELD Events
+    description: Core ELD event ingestion and querying.
+  - name: Log Periods
+    description: 24-hour HOS log period lifecycle management.
+  - name: HOS
+    description: Hours of Service calculations and violation reporting.
+  - name: Compliance
+    description: FMCSA .erod compliance file generation and transfer.
+  - name: Sync
+    description: Offline event buffer synchronization protocol.
+  - name: ELD Malfunctions
+    description: ELD malfunction and data-diagnostic event reporting.
+  - name: Unidentified Driving
+    description: Unassigned driving period review and claim workflow.

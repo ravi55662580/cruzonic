@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cruzonic.io/schemas/eld/intermediate-log.schema.json",
+  "title": "ELD Intermediate Log Event",
+  "description": "EventType 2 — Auto-generated position/engine snapshot recorded by the ELD while the driver is in Driving status, at intervals not exceeding 60 minutes. No driver action required. Used to track precise mileage and route for roadside inspection. Ref: 49 CFR §395.26(c), Appendix A §4.5.1.3.",
+  "allOf": [
+    { "$ref": "./_common.schema.json#/definitions/CommonEventBase" }
+  ],
+  "properties": {
+    "eventType": {
+      "title": "Event Type",
+      "description": "Must be 2 for intermediate log events.",
+      "type": "integer",
+      "const": 2
+    },
+    "eventSubType": {
+      "title": "Location Precision",
+      "description": "Indicates whether GPS coordinates are available at the required precision. 1=Conventional (within 1 mile), 2=Reduced (within 10 miles, e.g. GPS unavailable).",
+      "type": "integer",
+      "enum": [1, 2],
+      "enumDescriptions": [
+        "Conventional location precision (coordinates within 1 mile)",
+        "Reduced location precision (coordinates within 10 miles)"
+      ]
+    },
+    "currentDutyStatus": {
+      "title": "Current Duty Status",
+      "description": "Duty status at the time this intermediate log was recorded. Should always be 3 (Driving) for auto-generated intermediate logs.",
+      "type": "integer",
+      "enum": [1, 2, 3, 4],
+      "enumDescriptions": [
+        "Off Duty",
+        "Sleeper Berth",
+        "Driving",
+        "On-Duty Not Driving"
+      ]
+    },
+    "minutesSinceLastEvent": {
+      "title": "Minutes Since Last Event",
+      "description": "Elapsed minutes since the previous ELD event record in the current log period. The ELD must generate an intermediate log if this exceeds 60 minutes while driving.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 60
+    }
+  },
+  "required": [
+    "eventType",
+    "eventSubType",
+    "currentDutyStatus"
+  ],
+  "examples": [
+    {
+      "eventSequenceId": 12,
+      "eventRecordStatus": 1,
+      "eventRecordOrigin": 1,
+      "eventType": 2,
+      "eventSubType": 1,
+      "currentDutyStatus": 3,
+      "minutesSinceLastEvent": 60,
+      "eventDate": "061224",
+      "eventTime": "150000",
+      "timezoneOffset": "-0600",
+      "accumulatedVehicleMiles": 48396.7,
+      "elapsedEngineHours": 4522.4,
+      "location": {
+        "latitude": 41.502315,
+        "longitude": -88.142761,
+        "locationDescription": "Joliet, IL",
+        "distanceSinceLastValidCoordinates": null
+      },
+      "vehicle": {
+        "cmvPowerUnitNumber": "TRUCK-042",
+        "vin": "1HGBH41JXMN109186"
+      },
+      "driver": {
+        "driverEldAccountId": "jsmith",
+        "carrierDotNumber": "1234567"
+      },
+      "eldRegistrationId": "PACTRKV1",
+      "malfunctionIndicatorStatus": false,
+      "eldMalfunctionStatus": false,
+      "dataDiagnosticIndicatorStatus": false,
+      "eventDataCheckValue": "7E"
+    }
+  ]
+}

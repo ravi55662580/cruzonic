@@ -1,0 +1,31 @@
+{
+  "name": "cruzonic",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Cruzonic Fleet Management Platform — monorepo root",
+  "workspaces": [
+    "backend",
+    "mobile",
+    "portal",
+    "shared"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:portal": "npm run dev --workspace=portal",
+    "build:backend": "npm run build --workspace=backend",
+    "build:portal": "npm run build --workspace=portal",
+    "build:shared": "npm run build --workspace=shared",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "supabase:start": "npx supabase start",
+    "supabase:stop": "npx supabase stop"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

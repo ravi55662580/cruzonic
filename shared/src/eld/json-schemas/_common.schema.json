@@ -1,0 +1,350 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cruzonic.io/schemas/eld/_common.schema.json",
+  "title": "ELD Common Definitions",
+  "description": "Shared $defs referenced by all FMCSA ELD event-type schemas (49 CFR Part 395 Appendix A, v1.1.0).",
+  "definitions": {
+
+    "EventRecordStatus": {
+      "$id": "#/definitions/EventRecordStatus",
+      "title": "Event Record Status",
+      "description": "Lifecycle state of the ELD event record (§4.6.1).",
+      "type": "integer",
+      "enum": [1, 2, 3, 4],
+      "enumDescriptions": [
+        "Active",
+        "Inactive – changed",
+        "Inactive – change requested",
+        "Inactive – assumed from unidentified driver"
+      ]
+    },
+
+    "EventRecordOrigin": {
+      "$id": "#/definitions/EventRecordOrigin",
+      "title": "Event Record Origin",
+      "description": "Who or what created the event record (§4.6.2).",
+      "type": "integer",
+      "enum": [1, 2, 3, 4],
+      "enumDescriptions": [
+        "Automatically recorded by ELD",
+        "Edited or entered by the driver",
+        "Edited by another authenticated user",
+        "Assumed from unidentified driver profile"
+      ]
+    },
+
+    "EventDate": {
+      "$id": "#/definitions/EventDate",
+      "title": "Event Date",
+      "description": "Calendar date of the event in the driver's home-terminal timezone, encoded as MMDDYY.",
+      "type": "string",
+      "pattern": "^(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{2}$",
+      "examples": ["061224"]
+    },
+
+    "EventTime": {
+      "$id": "#/definitions/EventTime",
+      "title": "Event Time (UTC)",
+      "description": "Time of the event in UTC, encoded as HHMMSS (24-hour).",
+      "type": "string",
+      "pattern": "^([01][0-9]|2[0-3])[0-5][0-9][0-5][0-9]$",
+      "examples": ["183045"]
+    },
+
+    "TimezoneOffset": {
+      "$id": "#/definitions/TimezoneOffset",
+      "title": "Timezone Offset",
+      "description": "Driver's home-terminal UTC offset, encoded as ±HHMM (e.g. -0700 for MST).",
+      "type": "string",
+      "pattern": "^[+-](0[0-9]|1[0-4])[0-5][0-9]$",
+      "examples": ["-0700", "+0000", "+0530"]
+    },
+
+    "Latitude": {
+      "$id": "#/definitions/Latitude",
+      "title": "Latitude",
+      "description": "WGS-84 latitude in decimal degrees, 6 decimal places. Null when GPS is unavailable.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "multipleOf": 0.000001
+        }
+      ],
+      "examples": [41.878114, null]
+    },
+
+    "Longitude": {
+      "$id": "#/definitions/Longitude",
+      "title": "Longitude",
+      "description": "WGS-84 longitude in decimal degrees, 6 decimal places. Null when GPS is unavailable.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180,
+          "multipleOf": 0.000001
+        }
+      ],
+      "examples": [-87.629799, null]
+    },
+
+    "LocationDescription": {
+      "$id": "#/definitions/LocationDescription",
+      "title": "Location Description",
+      "description": "Nearest city/state or coords-derived text description of the event location (≤60 chars). Required when the event has a location component.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60,
+      "examples": ["Chicago, IL", "40 mi E of Denver, CO"]
+    },
+
+    "DistanceSinceLastValidCoordinates": {
+      "$id": "#/definitions/DistanceSinceLastValidCoordinates",
+      "title": "Distance Since Last Valid Coordinates",
+      "description": "Distance in tenths of a mile traveled since the last valid GPS fix. Required (non-null) when latitude/longitude are null.",
+      "oneOf": [
+        { "type": "null" },
+        { "type": "number", "minimum": 0, "maximum": 9999.9 }
+      ]
+    },
+
+    "AccumulatedVehicleMiles": {
+      "$id": "#/definitions/AccumulatedVehicleMiles",
+      "title": "Accumulated Vehicle Miles (Odometer)",
+      "description": "Total odometer reading at the time of the event, in miles (1 decimal place, engine-reported).",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 9999999.9
+    },
+
+    "ElapsedEngineHours": {
+      "$id": "#/definitions/ElapsedEngineHours",
+      "title": "Elapsed Engine Hours",
+      "description": "Total accumulated engine-on hours at the time of the event (1 decimal place, engine-reported).",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 999999.9
+    },
+
+    "DriverEldAccountId": {
+      "$id": "#/definitions/DriverEldAccountId",
+      "title": "Driver ELD Account ID",
+      "description": "Unique identifier for the driver's ELD account (username or UUID, ≤60 chars).",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60
+    },
+
+    "CoDriverEldAccountId": {
+      "$id": "#/definitions/CoDriverEldAccountId",
+      "title": "Co-Driver ELD Account ID",
+      "description": "Unique identifier for the co-driver's ELD account. Empty string when no co-driver is present.",
+      "type": "string",
+      "maxLength": 60
+    },
+
+    "CarrierDotNumber": {
+      "$id": "#/definitions/CarrierDotNumber",
+      "title": "Carrier USDOT Number",
+      "description": "Motor carrier's USDOT number (1–8 digits).",
+      "type": "string",
+      "pattern": "^[0-9]{1,8}$",
+      "examples": ["1234567"]
+    },
+
+    "VIN": {
+      "$id": "#/definitions/VIN",
+      "title": "Vehicle Identification Number",
+      "description": "Last 17 characters of the CMV's VIN per ISO 3779.",
+      "type": "string",
+      "minLength": 17,
+      "maxLength": 17,
+      "pattern": "^[A-HJ-NPR-Z0-9]{17}$",
+      "examples": ["1HGBH41JXMN109186"]
+    },
+
+    "CMVPowerUnitNumber": {
+      "$id": "#/definitions/CMVPowerUnitNumber",
+      "title": "CMV Power Unit Number",
+      "description": "Carrier-assigned identifier displayed on the commercial motor vehicle (truck number / unit number).",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10,
+      "examples": ["TRUCK-042"]
+    },
+
+    "LicensePlate": {
+      "$id": "#/definitions/LicensePlate",
+      "title": "License Plate",
+      "description": "CMV license plate number.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 12
+    },
+
+    "LicensePlateState": {
+      "$id": "#/definitions/LicensePlateState",
+      "title": "License Plate State",
+      "description": "Two-letter US state or Canadian province abbreviation for the CMV license plate.",
+      "type": "string",
+      "pattern": "^[A-Z]{2}$",
+      "examples": ["IL", "TX", "ON"]
+    },
+
+    "Annotation": {
+      "$id": "#/definitions/Annotation",
+      "title": "Driver Annotation",
+      "description": "Free-text remark entered by the driver (≤60 chars). Optional on supported event types.",
+      "type": "string",
+      "maxLength": 60
+    },
+
+    "EventDataCheckValue": {
+      "$id": "#/definitions/EventDataCheckValue",
+      "title": "Event Data Check Value",
+      "description": "Two-character hexadecimal checksum computed over all encoded fields in the event record (Appendix A §7.3.2).",
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{2}$",
+      "examples": ["A3", "FF", "00"]
+    },
+
+    "ELDRegistrationId": {
+      "$id": "#/definitions/ELDRegistrationId",
+      "title": "ELD Registration ID",
+      "description": "FMCSA-assigned identifier for the ELD device model, present in all file headers and event records.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8,
+      "examples": ["PACTRKV1"]
+    },
+
+    "DriverInfo": {
+      "$id": "#/definitions/DriverInfo",
+      "title": "Driver Information",
+      "description": "Identifying information about the driver associated with this event.",
+      "type": "object",
+      "properties": {
+        "driverEldAccountId": { "$ref": "#/definitions/DriverEldAccountId" },
+        "coDriverEldAccountId": { "$ref": "#/definitions/CoDriverEldAccountId" },
+        "carrierDotNumber": { "$ref": "#/definitions/CarrierDotNumber" }
+      },
+      "required": ["driverEldAccountId"]
+    },
+
+    "VehicleInfo": {
+      "$id": "#/definitions/VehicleInfo",
+      "title": "Vehicle (CMV) Information",
+      "description": "Identifying information about the commercial motor vehicle at the time of the event.",
+      "type": "object",
+      "properties": {
+        "cmvPowerUnitNumber": { "$ref": "#/definitions/CMVPowerUnitNumber" },
+        "vin":                { "$ref": "#/definitions/VIN" },
+        "licensePlate":       { "$ref": "#/definitions/LicensePlate" },
+        "licensePlateState":  { "$ref": "#/definitions/LicensePlateState" }
+      },
+      "required": ["cmvPowerUnitNumber", "vin"]
+    },
+
+    "LocationInfo": {
+      "$id": "#/definitions/LocationInfo",
+      "title": "Location Information",
+      "description": "GPS position and nearest-city description at the time of the event.",
+      "type": "object",
+      "properties": {
+        "latitude":                          { "$ref": "#/definitions/Latitude" },
+        "longitude":                         { "$ref": "#/definitions/Longitude" },
+        "locationDescription":               { "$ref": "#/definitions/LocationDescription" },
+        "distanceSinceLastValidCoordinates": { "$ref": "#/definitions/DistanceSinceLastValidCoordinates" }
+      },
+      "required": ["latitude", "longitude", "locationDescription", "distanceSinceLastValidCoordinates"],
+      "if": {
+        "properties": { "latitude": { "type": "null" } }
+      },
+      "then": {
+        "properties": {
+          "distanceSinceLastValidCoordinates": { "type": "number" }
+        }
+      }
+    },
+
+    "CommonEventBase": {
+      "$id": "#/definitions/CommonEventBase",
+      "title": "Common ELD Event Fields",
+      "description": "Fields that MUST be present on every ELD event record regardless of type (Appendix A §7.3).",
+      "type": "object",
+      "properties": {
+        "eventSequenceId": {
+          "title": "Event Sequence ID",
+          "description": "Sequential number within the current 24-hour log period. Starts at 1, resets at midnight home-terminal time. Max 65535.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "eventRecordStatus":  { "$ref": "#/definitions/EventRecordStatus" },
+        "eventRecordOrigin":  { "$ref": "#/definitions/EventRecordOrigin" },
+        "eventType": {
+          "title": "Event Type Code",
+          "description": "Primary category of this ELD record (1–7).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 7
+        },
+        "eventSubType": {
+          "title": "Event Sub-Type Code",
+          "description": "Secondary classification; interpretation is defined per eventType.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "eventDate":      { "$ref": "#/definitions/EventDate" },
+        "eventTime":      { "$ref": "#/definitions/EventTime" },
+        "timezoneOffset": { "$ref": "#/definitions/TimezoneOffset" },
+        "accumulatedVehicleMiles": { "$ref": "#/definitions/AccumulatedVehicleMiles" },
+        "elapsedEngineHours":      { "$ref": "#/definitions/ElapsedEngineHours" },
+        "location":                { "$ref": "#/definitions/LocationInfo" },
+        "vehicle":                 { "$ref": "#/definitions/VehicleInfo" },
+        "driver":                  { "$ref": "#/definitions/DriverInfo" },
+        "eldRegistrationId":       { "$ref": "#/definitions/ELDRegistrationId" },
+        "malfunctionIndicatorStatus": {
+          "title": "Malfunction Indicator Status",
+          "description": "True when the CMV's J1939/OBD malfunction indicator lamp is currently active.",
+          "type": "boolean"
+        },
+        "eldMalfunctionStatus": {
+          "title": "ELD Malfunction Status",
+          "description": "True when any ELD malfunction condition (code P–O) is currently active.",
+          "type": "boolean"
+        },
+        "dataDiagnosticIndicatorStatus": {
+          "title": "Data Diagnostic Indicator Status",
+          "description": "True when any ELD data-diagnostic condition (code 1–6) is currently active.",
+          "type": "boolean"
+        },
+        "eventDataCheckValue": { "$ref": "#/definitions/EventDataCheckValue" }
+      },
+      "required": [
+        "eventSequenceId",
+        "eventRecordStatus",
+        "eventRecordOrigin",
+        "eventType",
+        "eventSubType",
+        "eventDate",
+        "eventTime",
+        "timezoneOffset",
+        "accumulatedVehicleMiles",
+        "elapsedEngineHours",
+        "location",
+        "vehicle",
+        "driver",
+        "eldRegistrationId",
+        "malfunctionIndicatorStatus",
+        "eldMalfunctionStatus",
+        "dataDiagnosticIndicatorStatus",
+        "eventDataCheckValue"
+      ]
+    }
+  }
+}

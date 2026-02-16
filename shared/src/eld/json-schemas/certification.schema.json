@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cruzonic.io/schemas/eld/certification.schema.json",
+  "title": "ELD Driver Certification / Re-Certification Event",
+  "description": "EventType 4 — Records when a driver certifies the accuracy of their record of duty status (RODS) for a given 24-hour period. Drivers must certify records no later than 13 days after the day of the record. A re-certification event is generated whenever a certified record is subsequently edited. Ref: 49 CFR §395.8(h), Appendix A §4.5.1.5.",
+  "allOf": [
+    { "$ref": "./_common.schema.json#/definitions/CommonEventBase" }
+  ],
+  "properties": {
+    "eventType": {
+      "title": "Event Type",
+      "description": "Must be 4 for certification / re-certification events.",
+      "type": "integer",
+      "const": 4
+    },
+    "eventSubType": {
+      "title": "Certification Sub-Type",
+      "description": "1=Driver certifies their own records. 2=Driver certifies a co-driver's records (team operations).",
+      "type": "integer",
+      "enum": [1, 2],
+      "enumDescriptions": [
+        "Certification of own records",
+        "Certification of co-driver's records"
+      ]
+    },
+    "certifiedDate": {
+      "title": "Date Being Certified",
+      "description": "The 24-hour log period being certified, encoded as MMDDYY in the driver's home-terminal timezone. Must be ≤13 days before the certificationDate.",
+      "type": "string",
+      "pattern": "^(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{2}$",
+      "examples": ["061224"]
+    },
+    "certifiedDriverEldAccountId": {
+      "title": "Certified Driver ELD Account ID",
+      "description": "The ELD account ID of the driver whose records are being certified. Matches driverEldAccountId for self-certification, or co-driver's ID for EventSubType 2.",
+      "$ref": "./_common.schema.json#/definitions/DriverEldAccountId"
+    },
+    "totalRecordsCertified": {
+      "title": "Total Records Certified",
+      "description": "Count of all ELD event records (across all event types) in the certified 24-hour period. Used as an anti-tampering integrity check — if records are added or removed after certification, a re-certification event is required.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "isCertification": {
+      "title": "Is Initial Certification",
+      "description": "True for the first certification of this period. False when this event is a re-certification following a subsequent edit.",
+      "type": "boolean"
+    },
+    "editedEventSequenceIds": {
+      "title": "Edited Event Sequence IDs",
+      "description": "Array of eventSequenceIds that were changed since the last certification, triggering this re-certification. Empty for initial certifications.",
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 65535
+      },
+      "uniqueItems": true,
+      "default": []
+    }
+  },
+  "required": [
+    "eventType",
+    "eventSubType",
+    "certifiedDate",
+    "certifiedDriverEldAccountId",
+    "totalRecordsCertified",
+    "isCertification"
+  ],
+  "examples": [
+    {
+      "eventSequenceId": 48,
+      "eventRecordStatus": 1,
+      "eventRecordOrigin": 2,
+      "eventType": 4,
+      "eventSubType": 1,
+      "certifiedDate": "061224",
+      "certifiedDriverEldAccountId": "jsmith",
+      "totalRecordsCertified": 47,
+      "isCertification": true,
+      "editedEventSequenceIds": [],
+      "eventDate": "061224",
+      "eventTime": "235900",
+      "timezoneOffset": "-0600",
+      "accumulatedVehicleMiles": 48621.0,
+      "elapsedEngineHours": 4530.0,
+      "location": {
+        "latitude": 41.601439,
+        "longitude": -88.031281,
+        "locationDescription": "Bolingbrook, IL",
+        "distanceSinceLastValidCoordinates": null
+      },
+      "vehicle": {
+        "cmvPowerUnitNumber": "TRUCK-042",
+        "vin": "1HGBH41JXMN109186"
+      },
+      "driver": {
+        "driverEldAccountId": "jsmith",
+        "carrierDotNumber": "1234567"
+      },
+      "eldRegistrationId": "PACTRKV1",
+      "malfunctionIndicatorStatus": false,
+      "eldMalfunctionStatus": false,
+      "dataDiagnosticIndicatorStatus": false,
+      "eventDataCheckValue": "D1"
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cruzonic.io/schemas/eld/personal-use-yard-moves.schema.json",
+  "title": "ELD Personal Use / Yard Moves Indication Change Event",
+  "description": "EventType 3 — Records when a driver sets or clears an ELD-exempt status indication: Authorized Personal Use of CMV (§395.1(e)(1)) or Yard Moves (§395.1(k)). Both exemptions must be enabled by the carrier. When active, the ELD records position but does not accumulate driving time against HOS limits. Ref: 49 CFR §395.1(e)(1), §395.1(k), Appendix A §4.5.1.4.",
+  "allOf": [
+    { "$ref": "./_common.schema.json#/definitions/CommonEventBase" }
+  ],
+  "properties": {
+    "eventType": {
+      "title": "Event Type",
+      "description": "Must be 3 for personal-use / yard-moves indication change events.",
+      "type": "integer",
+      "const": 3
+    },
+    "eventSubType": {
+      "title": "Indication Change Sub-Type",
+      "description": "Specifies which exemption is being toggled and whether it is being set (clear) or cancelled. 1=Personal Use set, 2=Personal Use cancelled, 3=Yard Moves set, 4=Yard Moves cancelled.",
+      "type": "integer",
+      "enum": [1, 2, 3, 4],
+      "enumDescriptions": [
+        "Authorized personal use of CMV — indication set (active)",
+        "Authorized personal use of CMV — indication cleared (inactive)",
+        "Yard moves — indication set (active)",
+        "Yard moves — indication cleared (inactive)"
+      ]
+    },
+    "driverEldAccountId": {
+      "$ref": "./_common.schema.json#/definitions/DriverEldAccountId"
+    },
+    "annotation": {
+      "$ref": "./_common.schema.json#/definitions/Annotation"
+    },
+    "dutyStatusAtChange": {
+      "title": "Duty Status at Change",
+      "description": "The driver's current HOS duty-status at the moment this indication was toggled. Personal Use requires Off Duty; Yard Moves requires On-Duty Not Driving.",
+      "type": "integer",
+      "enum": [1, 2, 3, 4],
+      "enumDescriptions": [
+        "Off Duty",
+        "Sleeper Berth",
+        "Driving",
+        "On-Duty Not Driving"
+      ]
+    },
+    "carrierAuthorizationEnabled": {
+      "title": "Carrier Authorization Enabled",
+      "description": "Confirms the carrier has enabled this exemption type in the ELD configuration. An event with this false should be flagged as a compliance anomaly.",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "eventType",
+    "eventSubType",
+    "driverEldAccountId",
+    "dutyStatusAtChange"
+  ],
+  "examples": [
+    {
+      "eventSequenceId": 3,
+      "eventRecordStatus": 1,
+      "eventRecordOrigin": 2,
+      "eventType": 3,
+      "eventSubType": 1,
+      "driverEldAccountId": "jsmith",
+      "dutyStatusAtChange": 1,
+      "carrierAuthorizationEnabled": true,
+      "annotation": "Driving home — personal use authorized",
+      "eventDate": "061224",
+      "eventTime": "220000",
+      "timezoneOffset": "-0600",
+      "accumulatedVehicleMiles": 48500.0,
+      "elapsedEngineHours": 4524.1,
+      "location": {
+        "latitude": 41.878114,
+        "longitude": -87.629799,
+        "locationDescription": "Chicago, IL",
+        "distanceSinceLastValidCoordinates": null
+      },
+      "vehicle": {
+        "cmvPowerUnitNumber": "TRUCK-042",
+        "vin": "1HGBH41JXMN109186"
+      },
+      "driver": {
+        "driverEldAccountId": "jsmith",
+        "carrierDotNumber": "1234567"
+      },
+      "eldRegistrationId": "PACTRKV1",
+      "malfunctionIndicatorStatus": false,
+      "eldMalfunctionStatus": false,
+      "dataDiagnosticIndicatorStatus": false,
+      "eventDataCheckValue": "B2"
+    }
+  ]
+}

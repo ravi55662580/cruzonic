@@ -1,0 +1,196 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cruzonic.io/schemas/eld/malfunction-diagnostic.schema.json",
+  "title": "ELD Malfunction and Diagnostic Event",
+  "description": "EventType 7 — Recorded when the ELD detects or resolves a malfunction (requiring paper-log fallback within 8 days) or a data-diagnostic condition (non-critical data quality issue). Each of the 7 malfunction codes (P, E, T, L, R, S, O) and 6 diagnostic codes (1–6) produces a separate record when it becomes active and another when it clears. Ref: 49 CFR §395.34, Appendix A §4.5.1.8, §4.6.3, §4.6.4.",
+  "allOf": [
+    { "$ref": "./_common.schema.json#/definitions/CommonEventBase" }
+  ],
+  "properties": {
+    "eventType": {
+      "title": "Event Type",
+      "description": "Must be 7 for malfunction / diagnostic events.",
+      "type": "integer",
+      "const": 7
+    },
+    "eventSubType": {
+      "title": "Malfunction / Diagnostic Sub-Type",
+      "description": "1=Malfunction logged (became active), 2=Malfunction cleared (resolved), 3=Diagnostic logged (became active), 4=Diagnostic cleared (resolved).",
+      "type": "integer",
+      "enum": [1, 2, 3, 4],
+      "enumDescriptions": [
+        "Malfunction logged — condition is now active; driver must prepare paper logs",
+        "Malfunction cleared — condition has been resolved",
+        "Data-diagnostic logged — condition is now active",
+        "Data-diagnostic cleared — condition has been resolved"
+      ]
+    },
+    "malfunctionCode": {
+      "title": "Malfunction Code",
+      "description": "One of the 7 FMCSA malfunction codes. Required when eventSubType is 1 (logged) or 2 (cleared). Must be null when recording a diagnostic event.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "enum": ["P", "E", "T", "L", "R", "S", "O"],
+          "enumDescriptions": [
+            "P — Power compliance malfunction",
+            "E — Engine synchronization compliance malfunction",
+            "T — Timing compliance malfunction (clock > 10 min off UTC)",
+            "L — Positioning compliance malfunction (GPS unavailable > 60 min while driving)",
+            "R — Data recording compliance malfunction (storage failure)",
+            "S — Data transfer compliance malfunction (all transfer methods unavailable)",
+            "O — Other ELD-detected malfunction"
+          ]
+        }
+      ]
+    },
+    "diagnosticCode": {
+      "title": "Diagnostic Code",
+      "description": "One of the 6 FMCSA data-diagnostic codes. Required when eventSubType is 3 (logged) or 4 (cleared). Must be null when recording a malfunction event.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "enum": ["1", "2", "3", "4", "5", "6"],
+          "enumDescriptions": [
+            "1 — Power data diagnostic (unexpected power loss detected)",
+            "2 — Engine synchronization data diagnostic (ECM data unavailable > 30 min)",
+            "3 — Missing required data elements diagnostic",
+            "4 — Data transfer data diagnostic (test transfer failed)",
+            "5 — Unidentified driving records diagnostic (> 30 min unidentified driving in 24 h)",
+            "6 — Other ELD-identified diagnostic"
+          ]
+        }
+      ]
+    },
+    "isMalfunction": {
+      "title": "Is Malfunction",
+      "description": "True when this event records a malfunction condition (sub-type 1 or 2). False when it records a diagnostic condition (sub-type 3 or 4).",
+      "type": "boolean"
+    },
+    "isActive": {
+      "title": "Is Active",
+      "description": "True when the condition is being logged (sub-type 1 or 3). False when it is being cleared (sub-type 2 or 4).",
+      "type": "boolean"
+    },
+    "durationMinutes": {
+      "title": "Duration Minutes",
+      "description": "For cleared events (isActive=false): the total duration in minutes from when the condition was first logged until it was cleared. Null for newly logged events.",
+      "oneOf": [
+        { "type": "null" },
+        { "type": "integer", "minimum": 1 }
+      ]
+    },
+    "affectedLogPeriods": {
+      "title": "Affected Log Periods",
+      "description": "Array of log-period dates (MMDDYY) for which this malfunction or diagnostic may have compromised data integrity. Used by the compliance generator to annotate affected .erod records.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{2}$"
+      },
+      "uniqueItems": true,
+      "default": []
+    }
+  },
+  "required": [
+    "eventType",
+    "eventSubType",
+    "isMalfunction",
+    "isActive"
+  ],
+  "if": {
+    "properties": { "isMalfunction": { "const": true } }
+  },
+  "then": {
+    "required": ["malfunctionCode"],
+    "properties": {
+      "malfunctionCode": { "type": "string" },
+      "diagnosticCode": { "type": "null" }
+    }
+  },
+  "else": {
+    "required": ["diagnosticCode"],
+    "properties": {
+      "diagnosticCode": { "type": "string" },
+      "malfunctionCode": { "type": "null" }
+    }
+  },
+  "examples": [
+    {
+      "eventSequenceId": 9,
+      "eventRecordStatus": 1,
+      "eventRecordOrigin": 1,
+      "eventType": 7,
+      "eventSubType": 1,
+      "isMalfunction": true,
+      "isActive": true,
+      "malfunctionCode": "L",
+      "diagnosticCode": null,
+      "durationMinutes": null,
+      "affectedLogPeriods": ["061224"],
+      "eventDate": "061224",
+      "eventTime": "163000",
+      "timezoneOffset": "-0600",
+      "accumulatedVehicleMiles": 48450.2,
+      "elapsedEngineHours": 4523.1,
+      "location": {
+        "latitude": null,
+        "longitude": null,
+        "locationDescription": "38 mi W of Indianapolis, IN",
+        "distanceSinceLastValidCoordinates": 38.4
+      },
+      "vehicle": {
+        "cmvPowerUnitNumber": "TRUCK-042",
+        "vin": "1HGBH41JXMN109186"
+      },
+      "driver": {
+        "driverEldAccountId": "jsmith",
+        "carrierDotNumber": "1234567"
+      },
+      "eldRegistrationId": "PACTRKV1",
+      "malfunctionIndicatorStatus": false,
+      "eldMalfunctionStatus": true,
+      "dataDiagnosticIndicatorStatus": false,
+      "eventDataCheckValue": "F4"
+    },
+    {
+      "eventSequenceId": 22,
+      "eventRecordStatus": 1,
+      "eventRecordOrigin": 1,
+      "eventType": 7,
+      "eventSubType": 3,
+      "isMalfunction": false,
+      "isActive": true,
+      "malfunctionCode": null,
+      "diagnosticCode": "5",
+      "durationMinutes": null,
+      "affectedLogPeriods": ["061224"],
+      "eventDate": "061224",
+      "eventTime": "200000",
+      "timezoneOffset": "-0600",
+      "accumulatedVehicleMiles": 48510.0,
+      "elapsedEngineHours": 4525.5,
+      "location": {
+        "latitude": 39.768403,
+        "longitude": -86.158068,
+        "locationDescription": "Indianapolis, IN",
+        "distanceSinceLastValidCoordinates": null
+      },
+      "vehicle": {
+        "cmvPowerUnitNumber": "TRUCK-042",
+        "vin": "1HGBH41JXMN109186"
+      },
+      "driver": {
+        "driverEldAccountId": "jsmith",
+        "carrierDotNumber": "1234567"
+      },
+      "eldRegistrationId": "PACTRKV1",
+      "malfunctionIndicatorStatus": false,
+      "eldMalfunctionStatus": false,
+      "dataDiagnosticIndicatorStatus": true,
+      "eventDataCheckValue": "C8"
+    }
+  ]
+}

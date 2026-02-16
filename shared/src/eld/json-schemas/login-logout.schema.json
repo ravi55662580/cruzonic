@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cruzonic.io/schemas/eld/login-logout.schema.json",
+  "title": "ELD Driver Login / Logout Activity Event",
+  "description": "EventType 5 — Recorded when a driver authenticates to the ELD (login) or ends their session (logout). A login event associates a driver with the CMV; all driving detected while logged in is attributed to that driver. Unidentified driving accumulates until a driver logs in and claims it. Ref: 49 CFR §395.24(c)–(d), Appendix A §4.5.1.6.",
+  "allOf": [
+    { "$ref": "./_common.schema.json#/definitions/CommonEventBase" }
+  ],
+  "properties": {
+    "eventType": {
+      "title": "Event Type",
+      "description": "Must be 5 for login / logout events.",
+      "type": "integer",
+      "const": 5
+    },
+    "eventSubType": {
+      "title": "Login / Logout Sub-Type",
+      "description": "1=Driver login (session started). 2=Driver logout (session ended).",
+      "type": "integer",
+      "enum": [1, 2],
+      "enumDescriptions": [
+        "Driver login (authentication succeeded)",
+        "Driver logout"
+      ]
+    },
+    "driverEldAccountId": {
+      "$ref": "./_common.schema.json#/definitions/DriverEldAccountId"
+    },
+    "coDriverEldAccountId": {
+      "title": "Co-Driver ELD Account ID",
+      "description": "The co-driver's ELD account ID when this driver is part of a team operation. Empty string when driving solo.",
+      "$ref": "./_common.schema.json#/definitions/CoDriverEldAccountId"
+    },
+    "carrierDotNumber": {
+      "$ref": "./_common.schema.json#/definitions/CarrierDotNumber"
+    },
+    "homeTerminalAddress": {
+      "title": "Home Terminal Address",
+      "description": "Address of the driver's home terminal as stored in the ELD (≤200 chars).",
+      "type": "string",
+      "maxLength": 200,
+      "examples": ["1234 Freight Blvd, Chicago, IL 60601"]
+    },
+    "exemptions": {
+      "title": "Active Exemptions at Login",
+      "description": "HOS exemptions applicable to this driver, as configured by the carrier. Determines which rule set the HOS engine applies.",
+      "type": "object",
+      "properties": {
+        "shortHaul": {
+          "title": "Short-Haul Exemption (§395.1(e))",
+          "description": "True when this driver operates within 150 air-miles of their home terminal and qualifies for the short-haul exemption.",
+          "type": "boolean",
+          "default": false
+        },
+        "adverseDrivingConditions": {
+          "title": "Adverse Driving Conditions (§395.1(b))",
+          "description": "True when the driver has invoked the adverse driving conditions exemption granting up to 2 additional driving hours.",
+          "type": "boolean",
+          "default": false
+        },
+        "passengerCarrying": {
+          "title": "Passenger-Carrying Rules (§395.5)",
+          "description": "True when this driver operates under passenger-carrying HOS rules (10h driving, 15h on-duty, 60/70h weekly).",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "unidentifiedDrivingClaimed": {
+      "title": "Unidentified Driving Claimed",
+      "description": "Accumulated unidentified driving minutes claimed by this driver at login (driver reviewed and accepted the unidentified driving record). Ref: 49 CFR §395.30(c).",
+      "type": "integer",
+      "minimum": 0,
+      "default": 0
+    }
+  },
+  "required": [
+    "eventType",
+    "eventSubType",
+    "driverEldAccountId",
+    "carrierDotNumber"
+  ],
+  "examples": [
+    {
+      "eventSequenceId": 1,
+      "eventRecordStatus": 1,
+      "eventRecordOrigin": 2,
+      "eventType": 5,
+      "eventSubType": 1,
+      "driverEldAccountId": "jsmith",
+      "coDriverEldAccountId": "",
+      "carrierDotNumber": "1234567",
+      "homeTerminalAddress": "1234 Freight Blvd, Chicago, IL 60601",
+      "exemptions": {
+        "shortHaul": false,
+        "adverseDrivingConditions": false,
+        "passengerCarrying": false
+      },
+      "unidentifiedDrivingClaimed": 0,
+      "eventDate": "061224",
+      "eventTime": "130000",
+      "timezoneOffset": "-0600",
+      "accumulatedVehicleMiles": 48300.0,
+      "elapsedEngineHours": 4520.0,
+      "location": {
+        "latitude": 41.878114,
+        "longitude": -87.629799,
+        "locationDescription": "Chicago, IL",
+        "distanceSinceLastValidCoordinates": null
+      },
+      "vehicle": {
+        "cmvPowerUnitNumber": "TRUCK-042",
+        "vin": "1HGBH41JXMN109186"
+      },
+      "driver": {
+        "driverEldAccountId": "jsmith",
+        "carrierDotNumber": "1234567"
+      },
+      "eldRegistrationId": "PACTRKV1",
+      "malfunctionIndicatorStatus": false,
+      "eldMalfunctionStatus": false,
+      "dataDiagnosticIndicatorStatus": false,
+      "eventDataCheckValue": "A0"
+    }
+  ]
+}

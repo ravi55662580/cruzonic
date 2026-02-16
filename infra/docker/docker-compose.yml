@@ -1,0 +1,30 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: ../..
+      dockerfile: infra/docker/backend.Dockerfile
+    ports:
+      - '4000:4000'
+    env_file:
+      - ../../backend/.env
+    depends_on:
+      - supabase-db
+    restart: unless-stopped
+
+  # Local Supabase is normally started via `npx supabase start`.
+  # This service is a placeholder showing how to wire up the API
+  # if you choose to run a self-hosted Supabase in Docker instead.
+  supabase-db:
+    image: supabase/postgres:15.1.0.117
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - supabase_db_data:/var/lib/postgresql/data
+
+volumes:
+  supabase_db_data:

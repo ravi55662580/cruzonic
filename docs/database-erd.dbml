@@ -1,0 +1,518 @@
+// ============================================================
+// Cruzonic Fleet Management Platform — Entity-Relationship Diagram
+// DBML (Database Markup Language) for import into https://dbdiagram.io
+//
+// Usage: Go to dbdiagram.io → New Diagram → paste this file content
+//
+// Regulatory basis: 49 CFR Part 395, Subpart B — FMCSA ELD
+// Multi-tenant model: every fleet/carrier is isolated by carrier_id.
+//                     Row-Level Security (RLS) enforces this in Supabase.
+// ============================================================
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP 1 — MULTI-TENANT CORE
+// ─────────────────────────────────────────────────────────────────────────────
+
+Table carriers [note: 'Multi-tenant root. Every data row in the platform belongs to exactly one carrier.', headercolor: #1a56db] {
+  id                   uuid        [pk, not null, note: 'UUID v4 primary key']
+  dot_number           varchar(8)  [not null, unique, note: 'USDOT number (1–8 digits)']
+  mc_number            varchar(8)  [note: 'Motor Carrier number (optional)']
+  legal_name           text        [not null, note: 'Registered legal business name']
+  dba_name             text        [note: 'Doing-business-as name (optional)']
+  address_line1        text        [not null]
+  city                 text        [not null]
+  state                char(2)     [not null, note: 'Two-letter US state / CA province']
+  zip                  varchar(10) [not null]
+  country              char(2)     [not null, default: 'US']
+  phone                varchar(20) [not null]
+  email                text        [not null, unique]
+  status               text        [not null, default: 'active', note: 'active | suspended | inactive']
+  subscription_tier    text        [not null, default: 'starter', note: 'starter | professional | enterprise']
+  created_at           timestamptz [not null, default: 'now()']
+  updated_at           timestamptz [not null, default: 'now()']
+}
+
+Table profiles [note: 'Extends auth.users. Auto-created via trigger on new signup.', headercolor: #1a56db] {
+  id           uuid    [pk, not null, note: 'Matches auth.users.id']
+  carrier_id   uuid    [not null, ref: > carriers.id, note: 'Multi-tenant FK — every user belongs to one carrier']
+  role         text    [not null, note: 'driver | fleet_manager | admin | support']
+  full_name    text    [not null, default: '']
+  phone        varchar(20) [not null, default: '']
+  is_active    boolean [not null, default: true]
+  created_at   timestamptz [not null, default: 'now()']
+  updated_at   timestamptz [not null, default: 'now()']
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP 2 — FLEET ASSETS
+// ─────────────────────────────────────────────────────────────────────────────
+
+Table drivers [note: 'Commercial Motor Vehicle drivers (CDL holders).', headercolor: #0e9f6e] {
+  id                      uuid        [pk, not null]
+  carrier_id              uuid        [not null, ref: > carriers.id, note: 'Tenant isolation key']
+  user_id                 uuid        [not null, unique, note: 'FK → auth.users.id; 1:1 with profiles']
+  full_name               text        [not null]
+  phone                   varchar(20) [not null]
+  email                   text        [not null]
+  license_number          text        [not null, note: 'CDL number']
+  license_state           char(2)     [not null, note: 'CDL-issuing US state or CA province']
+  license_class           char(1)     [not null, note: 'A | B | C']
+  license_expiry          date        [not null]
+  home_terminal_address   text        [not null, note: 'Address of the driver home terminal per 49 CFR §395.2']
+  home_terminal_timezone  text        [not null, note: 'IANA timezone string e.g. America/Chicago']
+  hos_ruleset             text        [not null, default: 'property_70h', note: 'property_60h | property_70h | passenger_60h | passenger_70h']
+  exempt_driver_type      text        [not null, default: 'none', note: 'none | short_haul | agriculture | construction']
+  status                  text        [not null, default: 'offline', note: 'available | on_trip | offline | inactive | suspended']
+  current_vehicle_id      uuid        [ref: > vehicles.id, note: 'Denormalized current assignment — null when not on duty']
+  current_duty_status     smallint    [note: '1=OFF 2=SB 3=D 4=ON — null until first ELD event received']
+  created_at              timestamptz [not null, default: 'now()']
+  updated_at              timestamptz [not null, default: 'now()']
+}
+
+Table vehicles [note: 'Commercial Motor Vehicles (CMVs / power units).', headercolor: #0e9f6e] {
+  id                uuid        [pk, not null]
+  carrier_id        uuid        [not null, ref: > carriers.id]
+  power_unit_number varchar(10) [not null, note: 'Carrier-assigned truck number — unique per carrier']
+  vin               char(17)    [not null, unique, note: 'Vehicle Identification Number (ISO 3779, 17 chars)']
+  make              text        [not null]
+  model             text        [not null]
+  year              smallint    [not null]
+  license_plate     varchar(12) [not null]
+  license_plate_state char(2)   [not null]
+  gvwr_lbs          integer     [not null, note: 'Gross Vehicle Weight Rating in pounds']
+  vehicle_type      text        [not null, note: 'tractor | straight_truck | bus | other']
+  status            text        [not null, default: 'active', note: 'active | maintenance | retired']
+  current_driver_id uuid        [ref: > drivers.id, note: 'Denormalized — null when unoccupied']
+  created_at        timestamptz [not null, default: 'now()']
+  updated_at        timestamptz [not null, default: 'now()']
+}
+
+Table trailers [note: 'Trailers that can be coupled to CMVs. Up to 2 per CMV per trip.', headercolor: #0e9f6e] {
+  id                  uuid        [pk, not null]
+  carrier_id          uuid        [not null, ref: > carriers.id]
+  trailer_number      varchar(10) [not null, note: 'Carrier-assigned trailer number']
+  license_plate       varchar(12)
+  license_plate_state char(2)
+  trailer_type        text        [not null, note: 'dry_van | flatbed | refrigerated | tanker | lowboy | other']
+  status              text        [not null, default: 'active', note: 'active | maintenance | retired']
+  created_at          timestamptz [not null, default: 'now()']
+  updated_at          timestamptz [not null, default: 'now()']
+}
+
+Table eld_devices [note: 'FMCSA-registered Electronic Logging Devices. One physical device per CMV.', headercolor: #0e9f6e] {
+  id                  uuid        [pk, not null]
+  carrier_id          uuid        [not null, ref: > carriers.id]
+  registration_id     varchar(8)  [not null, note: 'FMCSA-assigned ELD Registration ID (e.g. PACTRKV1)']
+  serial_number       text        [not null, unique, note: 'Manufacturer serial number']
+  device_model        text        [not null, note: 'Hardware model name']
+  manufacturer        text        [not null, note: 'e.g. Pacific Track']
+  firmware_version    text        [not null]
+  fmcsa_certified_on  date        [not null, note: 'Date ELD model was added to FMCSA device registry']
+  current_vehicle_id  uuid        [ref: > vehicles.id, note: 'Null when removed from vehicle']
+  status              text        [not null, default: 'active', note: 'active | inactive | malfunctioning | decommissioned']
+  created_at          timestamptz [not null, default: 'now()']
+  updated_at          timestamptz [not null, default: 'now()']
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP 3 — ASSIGNMENT HISTORY
+// Tracks all past and current asset pairings. Required for compliance:
+// the .erod file must reflect the correct CMV/ELD relationship for each event.
+// ─────────────────────────────────────────────────────────────────────────────
+
+Table vehicle_eld_assignments [note: 'Full installation history: which ELD was in which vehicle at any time.', headercolor: #7e3af2] {
+  id             uuid        [pk, not null]
+  vehicle_id     uuid        [not null, ref: > vehicles.id]
+  eld_device_id  uuid        [not null, ref: > eld_devices.id]
+  assigned_at    timestamptz [not null, note: 'When the ELD was installed in this vehicle']
+  unassigned_at  timestamptz [note: 'Null means the ELD is currently installed in this vehicle']
+  assigned_by    uuid        [ref: > profiles.id, note: 'Fleet manager who recorded the installation']
+
+  indexes {
+    (vehicle_id, assigned_at) [name: 'idx_vea_vehicle_time']
+    (eld_device_id, assigned_at) [name: 'idx_vea_device_time']
+  }
+}
+
+Table driver_vehicle_assignments [note: 'Full assignment history: which driver operated which vehicle.', headercolor: #7e3af2] {
+  id             uuid        [pk, not null]
+  driver_id      uuid        [not null, ref: > drivers.id]
+  vehicle_id     uuid        [not null, ref: > vehicles.id]
+  assigned_at    timestamptz [not null]
+  unassigned_at  timestamptz [note: 'Null means currently assigned']
+  assigned_by    uuid        [ref: > profiles.id]
+  trailer1_id    uuid        [ref: > trailers.id, note: 'Primary trailer at time of assignment']
+  trailer2_id    uuid        [ref: > trailers.id, note: 'Second trailer (doubles) — nullable']
+
+  indexes {
+    (driver_id, assigned_at) [name: 'idx_dva_driver_time']
+    (vehicle_id, assigned_at) [name: 'idx_dva_vehicle_time']
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP 4 — ELD EVENT STREAM
+// Core immutable event tables. Original records are never deleted.
+// ─────────────────────────────────────────────────────────────────────────────
+
+Table log_periods [note: 'One row per driver per 24-hour HOS log period (midnight–midnight in home-terminal tz). Drives certification lifecycle.', headercolor: #ff5a1f] {
+  id                      uuid        [pk, not null]
+  carrier_id              uuid        [not null, ref: > carriers.id]
+  driver_id               uuid        [not null, ref: > drivers.id]
+  log_date                date        [not null, note: 'Calendar date of this period in home-terminal timezone']
+  log_date_mmddyy         char(6)     [not null, note: 'MMDDYY — used directly in .erod file headers']
+  home_terminal_timezone  text        [not null, note: 'IANA timezone — determines period boundaries']
+  status                  text        [not null, default: 'open', note: 'open | closed | certified | recertified']
+  total_event_count       integer     [not null, default: 0, note: 'Recalculated on every event insert — used for anti-tampering cert check']
+  hos_ruleset             text        [not null, note: 'Rule set active for this driver on this date']
+  certified_at            timestamptz [note: 'When driver first certified this period']
+  recertified_at          timestamptz [note: 'When driver last re-certified after a subsequent edit']
+  created_at              timestamptz [not null, default: 'now()']
+  updated_at              timestamptz [not null, default: 'now()']
+
+  indexes {
+    (driver_id, log_date) [unique, name: 'idx_log_periods_driver_date']
+    (carrier_id, log_date) [name: 'idx_log_periods_carrier_date']
+  }
+}
+
+Table eld_events [note: 'Append-only. All 7 FMCSA event types. Original records preserved on edit via event_record_status + previous_version_id chain.', headercolor: #ff5a1f] {
+  id                                uuid        [pk, not null]
+  carrier_id                        uuid        [not null, ref: > carriers.id, note: 'Denormalized for RLS partition']
+  log_period_id                     uuid        [not null, ref: > log_periods.id]
+  driver_id                         uuid        [not null, ref: > drivers.id]
+  vehicle_id                        uuid        [not null, ref: > vehicles.id]
+  eld_device_id                     uuid        [not null, ref: > eld_devices.id]
+
+  // ── FMCSA Appendix A required fields ──────────────────────────────────
+  event_sequence_id                 integer     [not null, note: '1–65535, resets at midnight. Unique per (eld_device_id, log_period_id).']
+  event_record_status               smallint    [not null, note: '1=Active 2=Inactive-Changed 3=Inactive-ChangeRequested 4=Inactive-AssumedUnidentified']
+  event_record_origin               smallint    [not null, note: '1=Auto 2=Driver 3=OtherUser 4=UnidentifiedDriver']
+  event_type                        smallint    [not null, note: '1=DutyStatus 2=IntermLog 3=PersonalUse/YardMoves 4=Certification 5=Login/Logout 6=EnginePower 7=Malfunction/Diag']
+  event_sub_type                    smallint    [not null, note: 'Interpretation depends on event_type — see FMCSA Appendix A §4.5']
+  event_date                        char(6)     [not null, note: 'MMDDYY in home-terminal timezone']
+  event_time                        char(6)     [not null, note: 'HHMMSS UTC']
+  timezone_offset                   char(5)     [not null, note: '±HHMM home-terminal UTC offset']
+  accumulated_vehicle_miles         numeric(9,1)[not null, note: 'Odometer in miles (1 decimal)']
+  elapsed_engine_hours              numeric(7,1)[not null, note: 'Total engine hours (1 decimal)']
+  latitude                          float8      [note: 'WGS-84 decimal degrees — null when GPS unavailable']
+  longitude                         float8      [note: 'WGS-84 decimal degrees — null when GPS unavailable']
+  location_description              varchar(60) [note: 'Nearest city/state or coords-derived string']
+  distance_since_last_valid_coords  numeric(6,1)[note: 'Tenths of a mile — required when lat/lon is null']
+  malfunction_indicator_status      boolean     [not null, default: false]
+  eld_malfunction_status            boolean     [not null, default: false]
+  data_diagnostic_indicator_status  boolean     [not null, default: false]
+  event_data_check_value            char(2)     [not null, note: 'Two-hex-char FMCSA checksum (Appendix A §7.3.2)']
+  annotation                        varchar(60) [note: 'Optional driver annotation — required for some event types']
+
+  // ── Event-type-specific denormalized fields ─────────────────────────────
+  driver_eld_account_id             varchar(60) [note: 'Required on event types 1, 4, 5']
+  co_driver_eld_account_id          varchar(60) [note: 'Required on event type 5 (login/logout) when team driving']
+  malfunction_code                  char(1)     [note: 'P|E|T|L|R|S|O — event type 7 malfunction events only']
+  diagnostic_code                   char(1)     [note: '1–6 — event type 7 diagnostic events only']
+
+  // ── Versioning (immutability chain) ─────────────────────────────────────
+  version_number                    smallint    [not null, default: 1, note: '1=original; incremented on each accepted edit']
+  previous_version_id               uuid        [ref: > eld_events.id, note: 'Self-reference to superseded version — null for originals']
+  original_version_id               uuid        [ref: > eld_events.id, note: 'Points to version 1 of this event; equals id when version_number=1']
+
+  // ── Tamper-evidence hashes ───────────────────────────────────────────────
+  content_hash                      char(64)    [not null, note: 'SHA-256 hex of canonical ELD data fields']
+  chain_hash                        char(64)    [not null, note: 'SHA-256 hex of (content_hash ∥ previous_chain_hash)']
+  previous_chain_hash               char(64)    [note: 'chain_hash of preceding event — null for first event in period']
+
+  created_at                        timestamptz [not null, default: 'now()']
+
+  indexes {
+    (log_period_id, event_sequence_id) [name: 'idx_eld_events_period_seq']
+    (driver_id, event_date)            [name: 'idx_eld_events_driver_date']
+    (eld_device_id, log_period_id, event_sequence_id) [unique, name: 'idx_eld_events_device_seq_unique', note: 'Enforces no duplicate sequence IDs per device per log period (active records only — partial index where event_record_status = 1)']
+    (carrier_id, event_type, event_date) [name: 'idx_eld_events_carrier_type']
+    (vehicle_id, event_date)           [name: 'idx_eld_events_vehicle_date']
+    content_hash                       [name: 'idx_eld_events_content_hash', note: 'For tamper detection lookups']
+  }
+}
+
+Table sequence_id_states [note: 'Persists the last-issued sequence ID per (eld_device_id × log_period). Used by SequenceIdManager.', headercolor: #ff5a1f] {
+  id              uuid        [pk, not null]
+  eld_device_id   uuid        [not null, ref: > eld_devices.id]
+  log_period_id   uuid        [not null, ref: > log_periods.id]
+  last_issued_id  integer     [not null, default: 0, note: '0 = no events yet this period']
+  last_issued_at  timestamptz [not null, default: 'now()']
+  wrap_around_count smallint  [not null, default: 0, note: 'Should always be 0 — >0 flags an anomaly']
+  updated_at      timestamptz [not null, default: 'now()']
+
+  indexes {
+    (eld_device_id, log_period_id) [unique, name: 'idx_seq_states_device_period']
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP 5 — MATERIALIZED HOS DATA
+// Derived from the ELD event stream. Updated on each relevant event insert.
+// ─────────────────────────────────────────────────────────────────────────────
+
+Table duty_status_records [note: 'Materialized duty-status intervals from EventType 1 events. One row per contiguous duty-status segment.', headercolor: #c27803] {
+  id                  uuid        [pk, not null]
+  carrier_id          uuid        [not null, ref: > carriers.id]
+  log_period_id       uuid        [not null, ref: > log_periods.id]
+  driver_id           uuid        [not null, ref: > drivers.id]
+  source_eld_event_id uuid        [not null, unique, ref: > eld_events.id, note: 'The EventType=1 record this was derived from']
+  duty_status         smallint    [not null, note: '1=OffDuty 2=SleeperBerth 3=Driving 4=OnDuty']
+  previous_duty_status smallint   [note: 'Null for the very first event in a driver history']
+  started_at          timestamptz [not null]
+  ended_at            timestamptz [note: 'Null if this is the current (open) duty segment']
+  duration_minutes    numeric(7,2)[note: 'Computed when segment closes']
+  location_description varchar(60)
+  latitude            float8
+  longitude           float8
+  is_personal_use_active boolean  [not null, default: false]
+  is_yard_moves_active   boolean  [not null, default: false]
+  created_at          timestamptz [not null, default: 'now()']
+
+  indexes {
+    (driver_id, started_at) [name: 'idx_dsr_driver_time']
+    (log_period_id, duty_status) [name: 'idx_dsr_period_status']
+  }
+}
+
+Table hos_calculations [note: 'Computed HOS window snapshot for a driver at end of a log period (or on-demand). Drives the mobile app HOS clock display.', headercolor: #c27803] {
+  id                                      uuid        [pk, not null]
+  carrier_id                              uuid        [not null, ref: > carriers.id]
+  driver_id                               uuid        [not null, ref: > drivers.id]
+  log_period_id                           uuid        [not null, ref: > log_periods.id]
+  calculated_at                           timestamptz [not null]
+  hos_ruleset                             text        [not null]
+
+  // ── Rolling window accumulators ──────────────────────────────────────────
+  driving_minutes_today                   integer     [not null]
+  on_duty_minutes_today                   integer     [not null]
+  driving_minutes_7day                    integer     [not null, note: 'Rolling 7 consecutive days']
+  on_duty_minutes_7day                    integer     [not null]
+  driving_minutes_8day                    integer     [not null, note: 'Rolling 8 consecutive days']
+  on_duty_minutes_8day                    integer     [not null]
+
+  // ── Remaining time (null = limit not applicable to this ruleset) ─────────
+  remaining_driving_minutes               integer     [note: 'Minutes until 11h driving limit']
+  remaining_on_duty_window_minutes        integer     [note: 'Minutes until 14h on-duty window expires']
+  remaining_weekly_minutes                integer     [note: 'Minutes remaining in 60 or 70h weekly limit']
+  time_until_break_required_minutes       integer     [note: 'Minutes until mandatory 30-min break required']
+  consecutive_off_duty_minutes            integer     [not null, note: 'Current streak of consecutive off-duty/sleeper-berth time']
+
+  // ── 34-hour restart ──────────────────────────────────────────────────────
+  is_in_34h_restart                       boolean     [not null, default: false]
+  restart_started_at                      timestamptz [note: 'When the 34h restart period began — null if not in restart']
+  restart_eligible_at                     timestamptz [note: 'When the restart will be complete']
+
+  // ── Exemption flags ──────────────────────────────────────────────────────
+  is_adverse_conditions_active            boolean     [not null, default: false]
+  adverse_conditions_invoked_at           timestamptz
+  is_short_haul_active                    boolean     [not null, default: false]
+
+  created_at                              timestamptz [not null, default: 'now()']
+
+  indexes {
+    (driver_id, log_period_id) [unique, name: 'idx_hos_calc_driver_period', note: 'One calculation per driver per period']
+    (carrier_id, calculated_at) [name: 'idx_hos_calc_carrier_time']
+  }
+}
+
+Table hos_violations [note: 'HOS rule violations detected by the rule engine. Each violation is tied to the event that triggered or revealed it.', headercolor: #c27803] {
+  id                  uuid        [pk, not null]
+  carrier_id          uuid        [not null, ref: > carriers.id]
+  driver_id           uuid        [not null, ref: > drivers.id]
+  log_period_id       uuid        [not null, ref: > log_periods.id]
+  trigger_event_id    uuid        [ref: > eld_events.id, note: 'The ELD event that caused the violation to be detected']
+  violation_type      text        [not null, note: 'DRIVING_LIMIT_EXCEEDED | ON_DUTY_WINDOW_EXCEEDED | BREAK_VIOLATION | WEEKLY_LIMIT_EXCEEDED | INSUFFICIENT_OFF_DUTY | FALSIFICATION_SUSPECTED | UNASSIGNED_DRIVING_TIME']
+  severity            text        [not null, note: 'warning | violation']
+  started_at          timestamptz [not null, note: 'When the violation condition began']
+  ended_at            timestamptz [note: 'When the violation condition ended — null if ongoing']
+  duration_minutes    integer     [note: 'Computed when ended_at is set']
+  details             jsonb       [note: 'Structured context: e.g. {limit_minutes: 660, actual_minutes: 685}']
+  acknowledged_by     uuid        [ref: > profiles.id]
+  acknowledged_at     timestamptz
+  created_at          timestamptz [not null, default: 'now()']
+
+  indexes {
+    (driver_id, started_at)         [name: 'idx_hos_viol_driver_time']
+    (carrier_id, violation_type)    [name: 'idx_hos_viol_carrier_type']
+    (log_period_id)                 [name: 'idx_hos_viol_period']
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP 6 — COMPLIANCE OUTPUTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+Table certifications [note: 'Materialized from EventType 4 events. One row per driver-certification of a log period.', headercolor: #e02424] {
+  id                          uuid        [pk, not null]
+  carrier_id                  uuid        [not null, ref: > carriers.id]
+  source_eld_event_id         uuid        [not null, unique, ref: > eld_events.id]
+  log_period_id               uuid        [not null, ref: > log_periods.id]
+  certifying_driver_id        uuid        [not null, ref: > drivers.id, note: 'The driver who performed the certification']
+  certified_driver_id         uuid        [not null, ref: > drivers.id, note: 'The driver whose records are certified — differs when a co-driver certifies']
+  certification_type          text        [not null, note: 'own_records | co_driver_records']
+  certified_log_date          char(6)     [not null, note: 'MMDDYY of the period being certified']
+  total_records_certified     integer     [not null, note: 'Anti-tampering event count']
+  is_recertification          boolean     [not null, default: false, note: 'True when a prior certified period was subsequently edited']
+  performed_at                timestamptz [not null]
+  created_at                  timestamptz [not null, default: 'now()']
+
+  indexes {
+    (certified_driver_id, certified_log_date) [name: 'idx_cert_driver_date']
+  }
+}
+
+Table unidentified_driver_records [note: 'Driving detected while no driver was logged into the ELD. Must be resolved by a driver login within 8 days. Ref: 49 CFR §395.30(c).', headercolor: #e02424] {
+  id                    uuid        [pk, not null]
+  carrier_id            uuid        [not null, ref: > carriers.id]
+  vehicle_id            uuid        [not null, ref: > vehicles.id]
+  eld_device_id         uuid        [not null, ref: > eld_devices.id]
+  log_period_id         uuid        [not null, ref: > log_periods.id]
+  started_at            timestamptz [not null]
+  ended_at              timestamptz [note: 'Null if still accumulating']
+  duration_minutes      integer     [note: 'Computed when ended_at is set']
+  accumulated_miles     numeric(7,1)[not null, default: 0]
+  status                text        [not null, default: 'pending', note: 'pending | claimed | rejected | expired']
+  claimed_by_driver_id  uuid        [ref: > drivers.id]
+  claimed_at            timestamptz
+  claim_eld_event_id    uuid        [ref: > eld_events.id, note: 'The login event where the driver claimed this record']
+  rejection_reason      text
+  created_at            timestamptz [not null, default: 'now()']
+
+  indexes {
+    (vehicle_id, started_at)  [name: 'idx_udr_vehicle_time']
+    (carrier_id, status)      [name: 'idx_udr_carrier_status']
+  }
+}
+
+Table eld_malfunctions [note: 'Active and resolved ELD malfunction and data-diagnostic conditions. Materialized from EventType 7 events.', headercolor: #e02424] {
+  id                    uuid        [pk, not null]
+  carrier_id            uuid        [not null, ref: > carriers.id]
+  source_eld_event_id   uuid        [not null, ref: > eld_events.id]
+  driver_id             uuid        [not null, ref: > drivers.id]
+  vehicle_id            uuid        [not null, ref: > vehicles.id]
+  eld_device_id         uuid        [not null, ref: > eld_devices.id]
+  is_malfunction        boolean     [not null, note: 'True=malfunction (P-O), False=diagnostic (1-6)']
+  malfunction_code      char(1)     [note: 'P|E|T|L|R|S|O — null for diagnostics']
+  diagnostic_code       char(1)     [note: '1–6 — null for malfunctions']
+  is_active             boolean     [not null, default: true]
+  detected_at           timestamptz [not null]
+  resolved_at           timestamptz [note: 'Null while active']
+  duration_minutes      integer     [note: 'Computed when resolved']
+  affected_log_periods  text[]      [note: 'MMDDYY dates of log periods with data potentially compromised']
+  paper_logs_required   boolean     [not null, default: false, note: 'True for malfunctions (require paper log fallback per 49 CFR §395.34)']
+  acknowledged_by       uuid        [ref: > profiles.id]
+  acknowledged_at       timestamptz
+  created_at            timestamptz [not null, default: 'now()']
+
+  indexes {
+    (eld_device_id, is_active)  [name: 'idx_eld_mal_device_active']
+    (driver_id, is_active)      [name: 'idx_eld_mal_driver_active']
+    (carrier_id, detected_at)   [name: 'idx_eld_mal_carrier_time']
+  }
+}
+
+Table eld_records [note: 'Immutable finalized .erod compliance files. Append-only — no UPDATE or DELETE. Retained for 6 months per 49 CFR §395.8(k).', headercolor: #e02424] {
+  id                  uuid        [pk, not null]
+  carrier_id          uuid        [not null, ref: > carriers.id]
+  driver_id           uuid        [not null, ref: > drivers.id]
+  log_period_id       uuid        [not null, ref: > log_periods.id]
+  eld_device_id       uuid        [not null, ref: > eld_devices.id]
+  file_version        varchar(10) [not null, default: '1.1.0', note: 'FMCSA ELD Technical Spec version']
+  erod_storage_path   text        [not null, note: 'Path within Supabase Storage bucket for the .erod file']
+  pdf_storage_path    text        [note: 'Path for the PDF driver log']
+  file_size_bytes     integer     [not null]
+  total_event_count   integer     [not null]
+  content_sha256      char(64)    [not null, note: 'SHA-256 of the .erod file — tamper evidence']
+  carrier_signature   text        [not null, note: 'Base64 digital signature using carrier certificate']
+  generated_at        timestamptz [not null]
+  generated_by        uuid        [ref: > profiles.id, note: 'Null for auto-generated (midnight batch)']
+  transfer_method     text        [note: 'web | bluetooth | usb | on_screen — populated when transferred']
+  transferred_at      timestamptz [note: 'When the file was delivered to a DOT inspector']
+  transferred_to_ip   inet        [note: 'Inspector IP for web transfer — null otherwise']
+  archived_at         timestamptz [note: 'When moved to cold storage after 6-month retention']
+  created_at          timestamptz [not null, default: 'now()']
+  // NO updated_at — this table is append-only per 49 CFR §395.8(k)
+
+  indexes {
+    (driver_id, log_period_id) [unique, name: 'idx_eld_records_driver_period', note: 'One finalized record per driver per period']
+    (carrier_id, generated_at) [name: 'idx_eld_records_carrier_time']
+    content_sha256             [name: 'idx_eld_records_hash']
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP 7 — AUDIT
+// ─────────────────────────────────────────────────────────────────────────────
+
+Table audit_entries [note: 'Append-only audit trail. One row per action on an eld_events record. Supports AuditAction enum: CREATED, EDITED, DRIVER_CERTIFIED, DRIVER_CONFIRMED_EDIT, DRIVER_REJECTED_EDIT, ASSUMED_FROM_UNIDENTIFIED, ARCHIVED.', headercolor: #6b7280] {
+  id                      uuid        [pk, not null]
+  event_id                uuid        [not null, ref: > eld_events.id]
+  previous_version_id     uuid        [ref: > eld_events.id, note: 'The superseded version — null for CREATED entries']
+  action                  text        [not null, note: 'CREATED | EDITED | DRIVER_CERTIFIED | DRIVER_CONFIRMED_EDIT | DRIVER_REJECTED_EDIT | ASSUMED_FROM_UNIDENTIFIED | ARCHIVED']
+  actor_type              text        [not null, note: 'DRIVER | CO_DRIVER | CARRIER | SUPPORT | SYSTEM']
+  actor_user_id           uuid        [ref: > profiles.id, note: 'Null for SYSTEM actions']
+  actor_display_name      text        [not null]
+  actor_organization_id   uuid        [ref: > carriers.id, note: 'For CARRIER and SUPPORT actors']
+  performed_at            timestamptz [not null]
+  eld_device_id           uuid        [ref: > eld_devices.id, note: 'Null for portal/API actions']
+  ip_address              inet        [note: 'Null for hardware-generated events']
+  user_agent              text
+  mobile_device_id        text        [note: 'Expo device ID for mobile app actions']
+  edit_reason_code        text        [note: 'Required when action=EDITED — see EditReasonCode enum']
+  edit_reason_text        text        [note: 'Free text — required when edit_reason_code=OTHER (>=20 chars)']
+  changed_fields          jsonb       [note: 'Array of FieldDiff objects — empty for non-edit actions']
+  reverted_to_version_id  uuid        [ref: > eld_events.id, note: 'For DRIVER_REJECTED_EDIT — the version reinstated']
+  created_at              timestamptz [not null, default: 'now()']
+
+  indexes {
+    (event_id, performed_at)    [name: 'idx_audit_event_time']
+    (actor_user_id, performed_at) [name: 'idx_audit_actor_time']
+    (actor_organization_id, performed_at) [name: 'idx_audit_org_time']
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABLE GROUPS (visual organization in dbdiagram.io)
+// ─────────────────────────────────────────────────────────────────────────────
+
+TableGroup "Multi-Tenant Core" {
+  carriers
+  profiles
+}
+
+TableGroup "Fleet Assets" {
+  drivers
+  vehicles
+  trailers
+  eld_devices
+}
+
+TableGroup "Assignment History" {
+  vehicle_eld_assignments
+  driver_vehicle_assignments
+}
+
+TableGroup "ELD Event Stream" {
+  log_periods
+  eld_events
+  sequence_id_states
+}
+
+TableGroup "Materialized HOS Data" {
+  duty_status_records
+  hos_calculations
+  hos_violations
+}
+
+TableGroup "Compliance Outputs" {
+  certifications
+  unidentified_driver_records
+  eld_malfunctions
+  eld_records
+}
+
+TableGroup "Audit" {
+  audit_entries
+}

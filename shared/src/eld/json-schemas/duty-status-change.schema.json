@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cruzonic.io/schemas/eld/duty-status-change.schema.json",
+  "title": "ELD Duty Status Change Event",
+  "description": "EventType 1 — Records every change in a driver's duty status (Off Duty, Sleeper Berth, Driving, On-Duty Not Driving). This is the most frequent ELD event type and the primary input to HOS rule calculations. Ref: 49 CFR §395.24(a), Appendix A §4.5.1.2.",
+  "allOf": [
+    { "$ref": "./_common.schema.json#/definitions/CommonEventBase" }
+  ],
+  "properties": {
+    "eventType": {
+      "title": "Event Type",
+      "description": "Must be 1 for duty-status change events.",
+      "type": "integer",
+      "const": 1
+    },
+    "eventSubType": {
+      "title": "Duty Status",
+      "description": "The new duty status the driver is transitioning INTO. 1=Off Duty, 2=Sleeper Berth, 3=Driving, 4=On-Duty Not Driving.",
+      "type": "integer",
+      "enum": [1, 2, 3, 4],
+      "enumDescriptions": [
+        "Off Duty",
+        "Sleeper Berth",
+        "Driving",
+        "On-Duty Not Driving"
+      ]
+    },
+    "previousDutyStatus": {
+      "title": "Previous Duty Status",
+      "description": "The duty status the driver was in immediately before this change. Stored for audit and HOS computation.",
+      "type": "integer",
+      "enum": [1, 2, 3, 4],
+      "enumDescriptions": [
+        "Off Duty",
+        "Sleeper Berth",
+        "Driving",
+        "On-Duty Not Driving"
+      ]
+    },
+    "driverEldAccountId": {
+      "$ref": "./_common.schema.json#/definitions/DriverEldAccountId"
+    },
+    "annotation": {
+      "$ref": "./_common.schema.json#/definitions/Annotation"
+    },
+    "isPersonalUseActive": {
+      "title": "Personal Use Active",
+      "description": "True when the driver has an active Authorized Personal Use indication at the time of this status change.",
+      "type": "boolean",
+      "default": false
+    },
+    "isYardMovesActive": {
+      "title": "Yard Moves Active",
+      "description": "True when the driver has an active Yard Moves indication at the time of this status change.",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "eventType",
+    "eventSubType",
+    "previousDutyStatus",
+    "driverEldAccountId"
+  ],
+  "examples": [
+    {
+      "eventSequenceId": 5,
+      "eventRecordStatus": 1,
+      "eventRecordOrigin": 1,
+      "eventType": 1,
+      "eventSubType": 3,
+      "previousDutyStatus": 4,
+      "eventDate": "061224",
+      "eventTime": "140000",
+      "timezoneOffset": "-0600",
+      "accumulatedVehicleMiles": 48321.4,
+      "elapsedEngineHours": 4521.2,
+      "location": {
+        "latitude": 41.878114,
+        "longitude": -87.629799,
+        "locationDescription": "Chicago, IL",
+        "distanceSinceLastValidCoordinates": null
+      },
+      "vehicle": {
+        "cmvPowerUnitNumber": "TRUCK-042",
+        "vin": "1HGBH41JXMN109186"
+      },
+      "driver": {
+        "driverEldAccountId": "jsmith",
+        "carrierDotNumber": "1234567"
+      },
+      "eldRegistrationId": "PACTRKV1",
+      "malfunctionIndicatorStatus": false,
+      "eldMalfunctionStatus": false,
+      "dataDiagnosticIndicatorStatus": false,
+      "eventDataCheckValue": "3C",
+      "driverEldAccountId": "jsmith",
+      "annotation": "",
+      "isPersonalUseActive": false,
+      "isYardMovesActive": false
+    }
+  ]
+}

@@ -1,0 +1,442 @@
+<mxfile host="app.diagrams.net" modified="2024-06-12T00:00:00.000Z" agent="Cruzonic Fleet Platform" version="24.0.0" type="device">
+  <diagram id="cruzonic-system-arch" name="Cruzonic System Architecture">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="1">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             LAYER BACKGROUND BANDS
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <mxCell id="band1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=none;opacity=30;" vertex="1" parent="1">
+          <mxGeometry x="20" y="20" width="1600" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="band1lbl" value="① ELD Hardware (In-Vehicle)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontStyle=3;fontColor=#23527c;" vertex="1" parent="1">
+          <mxGeometry x="30" y="22" width="280" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="band2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=none;opacity=30;" vertex="1" parent="1">
+          <mxGeometry x="20" y="170" width="1600" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="band2lbl" value="② Pacific Track SDK + Mobile / Portal Clients" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontStyle=3;fontColor=#2d6a4f;" vertex="1" parent="1">
+          <mxGeometry x="30" y="172" width="380" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="band3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=none;opacity=30;" vertex="1" parent="1">
+          <mxGeometry x="20" y="320" width="1600" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="band3lbl" value="③ Backend API Gateway (Node.js / Express)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontStyle=3;fontColor=#7d6608;" vertex="1" parent="1">
+          <mxGeometry x="30" y="322" width="360" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="band4" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=none;opacity=30;" vertex="1" parent="1">
+          <mxGeometry x="20" y="470" width="1600" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="band4lbl" value="④ Event Processing Pipeline" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontStyle=3;fontColor=#7d3c00;" vertex="1" parent="1">
+          <mxGeometry x="30" y="472" width="260" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="band5" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=none;opacity=30;" vertex="1" parent="1">
+          <mxGeometry x="20" y="620" width="1600" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="band5lbl" value="⑤ Data Storage — Supabase" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontStyle=3;fontColor=#4a235a;" vertex="1" parent="1">
+          <mxGeometry x="30" y="622" width="260" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="band6" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=none;opacity=30;" vertex="1" parent="1">
+          <mxGeometry x="20" y="770" width="1600" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="band6lbl" value="⑥ FMCSA Compliance Output" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontStyle=3;fontColor=#78281f;" vertex="1" parent="1">
+          <mxGeometry x="30" y="772" width="280" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="band7" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=none;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="20" y="920" width="1600" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="band7lbl" value="⑦ External Consumers" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontStyle=3;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="30" y="922" width="220" height="20" as="geometry" />
+        </mxCell>
+
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             LAYER 1 — ELD HARDWARE
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <!-- ELD Device (Truck ECU / Telematics Unit) -->
+        <mxCell id="e1" value="&lt;b&gt;ELD Device&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Telematics Control Unit&lt;br/&gt;FMCSA Registered&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="50" width="190" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- GPS / GNSS Antenna -->
+        <mxCell id="e2" value="&lt;b&gt;GPS / GNSS Sensor&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Location · Speed · Heading&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="310" y="50" width="190" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Engine ECM / CAN Bus -->
+        <mxCell id="e3" value="&lt;b&gt;Engine ECM&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;CAN Bus J1939/J1708&lt;br/&gt;RPM · Odometer · Idle&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="540" y="50" width="190" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- CAN Bus connector label -->
+        <mxCell id="e4" value="CAN Bus" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=9;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="485" y="82" width="60" height="16" as="geometry" />
+        </mxCell>
+
+        <!-- ELD → GPS internal wiring arrow -->
+        <mxCell id="ea1" value="" style="endArrow=none;dashed=1;endFill=0;strokeColor=#6c8ebf;strokeWidth=1;" edge="1" parent="1" source="e1" target="e2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ELD ← ECM CAN Bus arrow -->
+        <mxCell id="ea2" value="" style="endArrow=none;dashed=1;endFill=0;strokeColor=#6c8ebf;strokeWidth=1;" edge="1" parent="1" source="e3" target="e2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             LAYER 2 — PACIFIC TRACK SDK + MOBILE APP + FLEET PORTAL
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <!-- Pacific Track SDK box -->
+        <mxCell id="sdk" value="&lt;b&gt;Pacific Track SDK&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Native iOS/Android Module&lt;br/&gt;HOS · Location · Engine Data&lt;br/&gt;BT / USB Connection Manager&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;arcSize=10;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="185" width="220" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- React Native Driver App -->
+        <mxCell id="mob" value="&lt;b&gt;React Native Driver App&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;iOS &amp; Android (Expo)&lt;br/&gt;HOS Logs · Trip Control&lt;br/&gt;Offline Event Queue&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;arcSize=10;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="360" y="185" width="220" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- React Fleet Portal -->
+        <mxCell id="portal" value="&lt;b&gt;React Fleet Portal&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Vite + React 18&lt;br/&gt;Live Map · HOS Dashboard&lt;br/&gt;Reports · Driver Mgmt&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;arcSize=10;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="185" width="220" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Supabase Realtime badge on portal -->
+        <mxCell id="rt_badge" value="⚡ Realtime WebSocket" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#82b366;strokeColor=#4d8a55;fontSize=9;fontColor=#ffffff;arcSize=50;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="295" width="180" height="22" as="geometry" />
+        </mxCell>
+
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             LAYER 3 — BACKEND API
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <!-- Express API Server (main) -->
+        <mxCell id="api" value="&lt;b&gt;Express API Server&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Node.js 20 · TypeScript&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;arcSize=10;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="460" y="340" width="260" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- API sub-component badges -->
+        <mxCell id="api_auth" value="🔐 Supabase JWT Guard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6b656;strokeColor=#b8860b;fontSize=9;fontColor=#ffffff;arcSize=50;" vertex="1" parent="1">
+          <mxGeometry x="465" y="418" width="160" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="api_rate" value="🚦 Rate Limiter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6b656;strokeColor=#b8860b;fontSize=9;fontColor=#ffffff;arcSize=50;" vertex="1" parent="1">
+          <mxGeometry x="635" y="418" width="80" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- Compliance Output Generator (API layer) -->
+        <mxCell id="comp" value="&lt;b&gt;Compliance Output Generator&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;HOS Calculation Engine&lt;br/&gt;49 CFR Part 395 Rules&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;arcSize=10;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="335" width="230" height="90" as="geometry" />
+        </mxCell>
+
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             LAYER 4 — EVENT PROCESSING PIPELINE
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <!-- ELD Data Validator -->
+        <mxCell id="p_eld" value="&lt;b&gt;ELD Data Validator&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Schema check&lt;br/&gt;Tamper detection&lt;br/&gt;Malfunction codes&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="490" width="160" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- HOS Event Processor -->
+        <mxCell id="p_hos" value="&lt;b&gt;HOS Event Processor&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Duty status changes&lt;br/&gt;Drive/On-Duty/Off-Duty&lt;br/&gt;Sleeper Berth splits&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="280" y="490" width="160" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Location Aggregator -->
+        <mxCell id="p_loc" value="&lt;b&gt;Location Aggregator&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;GPS event batching&lt;br/&gt;Speed enforcement&lt;br/&gt;Geofence events&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="480" y="490" width="160" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Engine Event Handler -->
+        <mxCell id="p_eng" value="&lt;b&gt;Engine Event Handler&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Ignition on/off&lt;br/&gt;Idle time tracking&lt;br/&gt;Odometer sync&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="680" y="490" width="160" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- FMCSA Formatter (pipeline layer, right) -->
+        <mxCell id="fmcsa_fmt" value="&lt;b&gt;FMCSA Data Formatter&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;ELD Output File spec&lt;br/&gt;49 CFR Part 395 App A&lt;br/&gt;CMV / Driver segments&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="485" width="230" height="90" as="geometry" />
+        </mxCell>
+
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             LAYER 5 — SUPABASE STORAGE
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <!-- Supabase PostgreSQL -->
+        <mxCell id="db" value="&lt;b&gt;Supabase PostgreSQL&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;drivers · vehicles · trips&lt;br/&gt;location_events · hos_events&lt;br/&gt;eld_records · audit_log&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="640" width="200" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Supabase Auth -->
+        <mxCell id="supa_auth" value="&lt;b&gt;Supabase Auth&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;JWT · RLS Policies&lt;br/&gt;Driver / Fleet roles&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="320" y="640" width="180" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Supabase Realtime -->
+        <mxCell id="supa_rt" value="&lt;b&gt;Supabase Realtime&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;location_events stream&lt;br/&gt;hos_events stream&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="540" y="640" width="180" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- ELD Records Store (compliance-specific) -->
+        <mxCell id="eld_store" value="&lt;b&gt;ELD Records Store&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Immutable audit log&lt;br/&gt;6-month retention&lt;br/&gt;(49 CFR §395.8)&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="635" width="230" height="90" as="geometry" />
+        </mxCell>
+
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             LAYER 6 — FMCSA COMPLIANCE OUTPUTS
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <!-- Fleet Manager Dashboard output -->
+        <mxCell id="out_dash" value="&lt;b&gt;Fleet Dashboard&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Live tracking map&lt;br/&gt;HOS violations alerts&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="800" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Driver HOS Summary output -->
+        <mxCell id="out_hos" value="&lt;b&gt;Driver HOS Summary&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Hours remaining&lt;br/&gt;Cycle / Shift / Drive&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="800" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ELD Output File -->
+        <mxCell id="out_erod" value="&lt;b&gt;ELD Output File (.erod)&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;FMCSA standardised format&lt;br/&gt;Transfer via BT/USB/Web&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;arcSize=10;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="870" y="795" width="200" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- Driver Log PDF -->
+        <mxCell id="out_pdf" value="&lt;b&gt;Driver Log (PDF)&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;24-hr graph grid&lt;br/&gt;Print / email to driver&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="795" width="200" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- DOT Roadside Inspection Transfer -->
+        <mxCell id="out_dot" value="&lt;b&gt;DOT Web Transfer&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;fmcsa.dot.gov portal&lt;br/&gt;Encrypted submission&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1330" y="795" width="200" height="75" as="geometry" />
+        </mxCell>
+
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             LAYER 7 — EXTERNAL CONSUMERS
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <!-- Fleet Manager / HQ -->
+        <mxCell id="con_fm" value="&lt;b&gt;Fleet Manager / HQ&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Web browser&lt;/font&gt;" style="shape=mxgraph.basic.person;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="120" y="940" width="60" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Driver on mobile -->
+        <mxCell id="con_drv" value="&lt;b&gt;Driver&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Mobile app&lt;/font&gt;" style="shape=mxgraph.basic.person;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="360" y="940" width="60" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- DOT Inspector -->
+        <mxCell id="con_dot" value="&lt;b&gt;DOT Inspector&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Roadside / post-trip&lt;/font&gt;" style="shape=mxgraph.basic.person;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="940" width="60" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- FMCSA Safety Analyst -->
+        <mxCell id="con_fmcsa" value="&lt;b&gt;FMCSA Safety Analyst&lt;/b&gt;&lt;br/&gt;&lt;font style=&apos;font-size:10px&apos;&gt;Federal portal&lt;/font&gt;" style="shape=mxgraph.basic.person;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1370" y="940" width="60" height="80" as="geometry" />
+        </mxCell>
+
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             DATA FLOW ARROWS
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <!-- ELD Device → Pacific Track SDK (BT/USB) -->
+        <mxCell id="arr_e1sdk" value="BT / USB" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#d79b00;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" parent="1" source="e1" target="sdk">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- GPS Module → Pacific Track SDK -->
+        <mxCell id="arr_gpssdk" value="GPS feed" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#d79b00;strokeWidth=1.5;fontSize=10;dashed=1;" edge="1" parent="1" source="e2" target="sdk">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Engine ECM → Pacific Track SDK (CAN Bus) -->
+        <mxCell id="arr_ecmsdk" value="CAN Bus" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#d79b00;strokeWidth=1.5;fontSize=10;dashed=1;" edge="1" parent="1" source="e3" target="sdk">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="635" y="145" />
+              <mxPoint x="190" y="145" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Pacific Track SDK → React Native App (internal SDK events) -->
+        <mxCell id="arr_sdkmob" value="SDK events" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" parent="1" source="sdk" target="mob">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- React Native App → Express API (HTTPS REST) -->
+        <mxCell id="arr_mobapi" value="HTTPS REST / JWT" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#d6b656;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" parent="1" source="mob" target="api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Fleet Portal → Express API (HTTPS REST) -->
+        <mxCell id="arr_portalapi" value="REST API calls" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#d6b656;strokeWidth=1.5;fontSize=10;dashed=1;" edge="1" parent="1" source="portal" target="api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Express API → Compliance Output Generator -->
+        <mxCell id="arr_apicomp" value="HOS records" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#b85450;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" parent="1" source="api" target="comp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Express API → ELD Data Validator -->
+        <mxCell id="arr_apip1" value="raw ELD payload" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#d79b00;strokeWidth=1.5;fontSize=10;" edge="1" parent="1" source="api" target="p_eld">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Express API → HOS Event Processor -->
+        <mxCell id="arr_apip2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#d79b00;strokeWidth=1.5;" edge="1" parent="1" source="api" target="p_hos">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Express API → Location Aggregator -->
+        <mxCell id="arr_apip3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#d79b00;strokeWidth=1.5;" edge="1" parent="1" source="api" target="p_loc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Express API → Engine Event Handler -->
+        <mxCell id="arr_apip4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#d79b00;strokeWidth=1.5;" edge="1" parent="1" source="api" target="p_eng">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ELD Data Validator → Supabase DB -->
+        <mxCell id="arr_p1db" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#9673a6;strokeWidth=1.5;" edge="1" parent="1" source="p_eld" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- HOS Event Processor → Supabase DB -->
+        <mxCell id="arr_p2db" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#9673a6;strokeWidth=1.5;" edge="1" parent="1" source="p_hos" target="supa_auth">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Location Aggregator → Supabase Realtime -->
+        <mxCell id="arr_p3rt" value="location_events" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#9673a6;strokeWidth=1.5;fontSize=9;" edge="1" parent="1" source="p_loc" target="supa_rt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Engine Event Handler → Supabase DB -->
+        <mxCell id="arr_p4db" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.8;entryY=0;entryDx=0;entryDy=0;strokeColor=#9673a6;strokeWidth=1.5;" edge="1" parent="1" source="p_eng" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Compliance Generator → FMCSA Formatter -->
+        <mxCell id="arr_compfmt" value="normalised records" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#b85450;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" parent="1" source="comp" target="fmcsa_fmt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- FMCSA Formatter → ELD Records Store -->
+        <mxCell id="arr_fmtstore" value="persist &amp; sign" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#b85450;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" parent="1" source="fmcsa_fmt" target="eld_store">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Supabase Realtime → Fleet Portal (WebSocket) -->
+        <mxCell id="arr_rtportal" value="WebSocket stream" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" parent="1" source="supa_rt" target="portal">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="760" y="685" />
+              <mxPoint x="760" y="420" />
+              <mxPoint x="1290" y="420" />
+              <mxPoint x="1290" y="295" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Supabase DB → Fleet Dashboard -->
+        <mxCell id="arr_dbdash" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=1.5;" edge="1" parent="1" source="db" target="out_dash">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Supabase Auth → Driver HOS Summary -->
+        <mxCell id="arr_authhos" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=1.5;" edge="1" parent="1" source="supa_auth" target="out_hos">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ELD Records Store → ELD Output File -->
+        <mxCell id="arr_store_erod" value=".erod export" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#b85450;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" parent="1" source="eld_store" target="out_erod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ELD Records Store → Driver Log PDF -->
+        <mxCell id="arr_store_pdf" value="PDF render" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#b85450;strokeWidth=1.5;fontSize=10;" edge="1" parent="1" source="eld_store" target="out_pdf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ELD Records Store → DOT Web Transfer -->
+        <mxCell id="arr_store_dot" value="encrypted upload" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#b85450;strokeWidth=1.5;fontSize=10;" edge="1" parent="1" source="eld_store" target="out_dot">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Fleet Dashboard → Fleet Manager consumer -->
+        <mxCell id="arr_dash_fm" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=1.5;" edge="1" parent="1" source="out_dash" target="con_fm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- HOS Summary → Driver consumer -->
+        <mxCell id="arr_hos_drv" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=1.5;" edge="1" parent="1" source="out_hos" target="con_drv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ELD Output / PDF → DOT Inspector -->
+        <mxCell id="arr_erod_dot" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#b85450;strokeWidth=1.5;" edge="1" parent="1" source="out_erod" target="con_dot">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- DOT Web Transfer → FMCSA Safety Analyst -->
+        <mxCell id="arr_dot_analyst" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#b85450;strokeWidth=1.5;" edge="1" parent="1" source="out_dot" target="con_fmcsa">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             LEGEND
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <mxCell id="legend_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="20" width="155" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_title" value="&lt;b&gt;Legend&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="25" width="155" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" value="ELD Hardware" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="55" width="135" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" value="Pacific Track SDK" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="88" width="135" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" value="Mobile / Portal App" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="121" width="135" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4" value="Backend / API" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="154" width="135" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5" value="Supabase Storage" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="187" width="135" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="leg6" value="FMCSA Compliance" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="220" width="135" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="leg7" value="Consumers" style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="253" width="135" height="26" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
