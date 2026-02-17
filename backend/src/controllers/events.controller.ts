@@ -2,7 +2,8 @@
  * Events Controller
  *
  * Handles ELD event operations:
- * - Ingest new events
+ * - Ingest single event
+ * - Ingest batch of events (up to 100)
  * - Retrieve events by device/driver
  * - Detect sequence ID gaps
  */
@@ -10,7 +11,7 @@
 import type { Response } from 'express';
 import { BaseController } from './base.controller';
 import type { AuthenticatedRequest } from '../middleware/auth';
-import { ingestEvent, getEventsByDevice } from '../services/event-ingestion.service';
+import { ingestEvent, getEventsByDevice, ingestBatchEvents } from '../services/event-ingestion.service';
 import { detectSequenceGaps } from '../services/sequence-id.service';
 import { logger } from '../utils/logger';
 import { AuthenticationError } from '../models/errors/api-error';
@@ -18,7 +19,7 @@ import { AuthenticationError } from '../models/errors/api-error';
 export class EventsController extends BaseController {
   /**
    * POST /api/v1/events
-   * Ingest a new ELD event
+   * Ingest a single ELD event
    */
   async ingestEvent(req: AuthenticatedRequest, res: Response): Promise<Response> {
     const eventData = req.body;
@@ -33,7 +34,6 @@ export class EventsController extends BaseController {
       userId: req.user.id,
     });
 
-    // Delegate to service (existing implementation)
     const result = await ingestEvent({
       ...eventData,
       actor: {
@@ -47,11 +47,70 @@ export class EventsController extends BaseController {
       },
     });
 
-    logger.info('Event ingested successfully', {
-      sequenceId: result.sequenceId,
-    });
+    logger.info('Event ingested successfully', { sequenceId: result.sequenceId });
 
     return this.created(res, result);
+  }
+
+  /**
+   * POST /api/v1/events/batch
+   * Ingest a batch of ELD events (up to 100).
+   *
+   * Events are processed sequentially to preserve hash chain integrity.
+   * Returns 201 if all events accepted, 207 if partial, 400 if all rejected.
+   *
+   * Supports gzip-compressed request bodies via Content-Encoding: gzip.
+   */
+  async ingestBatchEvents(req: AuthenticatedRequest, res: Response): Promise<Response> {
+    if (!req.user) {
+      throw new AuthenticationError('User not authenticated');
+    }
+
+    const { events, deviceId: sharedDeviceId } = req.body;
+    const deviceIdHeader = req.headers['x-device-id'] as string | undefined;
+    const resolvedDeviceId = sharedDeviceId || deviceIdHeader;
+
+    logger.info('Ingesting event batch', {
+      count: events?.length ?? 0,
+      deviceId: resolvedDeviceId,
+      userId: req.user.id,
+      contentEncoding: req.headers['content-encoding'] || 'none',
+    });
+
+    // Normalise each event: apply shared deviceId if the individual event doesn't provide one
+    const normalisedEvents = (events as Record<string, unknown>[]).map((event) => ({
+      ...event,
+      eldDeviceId: (event.eldDeviceId as string) || resolvedDeviceId,
+    }));
+
+    const result = await ingestBatchEvents({
+      events: normalisedEvents as Parameters<typeof ingestBatchEvents>[0]['events'],
+      actor: {
+        userId: req.user.id,
+        deviceId: resolvedDeviceId || 'unknown',
+        source: 'api' as const,
+      },
+      network: {
+        ipAddress: req.ip || 'unknown',
+        userAgent: req.headers['user-agent'] || 'unknown',
+      },
+    });
+
+    logger.info('Batch ingestion complete', {
+      total: result.summary.total,
+      accepted: result.summary.accepted,
+      rejected: result.summary.rejected,
+      processingTimeMs: result.summary.processingTimeMs,
+    });
+
+    // 201 – all accepted; 207 – partial; 400 – all rejected
+    if (result.summary.rejected === 0) {
+      return this.created(res, result);
+    }
+    if (result.summary.accepted === 0) {
+      return res.status(400).json({ success: false, data: result });
+    }
+    return res.status(207).json({ success: true, data: result });
   }
 
   /**
@@ -63,7 +122,6 @@ export class EventsController extends BaseController {
 
     logger.debug('Fetching events', { query });
 
-    // Simplified implementation - delegates to existing service
     const deviceId = (query.deviceId as string) || (query.eldDeviceId as string) || '';
     const logDate = (query.startDate as string) || '';
     const eventType = query.eventType ? Number(query.eventType) : undefined;

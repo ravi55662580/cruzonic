@@ -194,3 +194,98 @@ export async function getEventsByDevice(
 
   return data || [];
 }
+
+// ============================================================================
+// Batch Event Ingestion
+// ============================================================================
+
+/**
+ * Loose actor shape accepted by the batch ingestion entry-point.
+ * The full AuditActor (from the shared package) requires additional fields that
+ * the API layer does not yet supply; the cast to AuditActor is done internally
+ * when forwarding to ingestEvent().
+ */
+export interface BatchActorContext {
+  userId: string;
+  deviceId?: string;
+  source?: string;
+  [key: string]: unknown;
+}
+
+export interface BatchIngestParams {
+  events: Omit<IngestEventParams, 'actor' | 'network'>[];
+  actor: BatchActorContext;
+  network?: NetworkContext;
+}
+
+export interface BatchIngestResult {
+  accepted: Array<{
+    index: number;
+    eventId: string;
+    sequenceId: number;
+    chainHash: string;
+    eventType: number;
+  }>;
+  rejected: Array<{
+    index: number;
+    error: string;
+    eventType?: number;
+    eventSequenceId?: string;
+  }>;
+  summary: {
+    total: number;
+    accepted: number;
+    rejected: number;
+    processingTimeMs: number;
+  };
+}
+
+/**
+ * Ingests a batch of ELD events sequentially to preserve hash chain integrity.
+ *
+ * Events within a batch are processed one-by-one because each event's chainHash
+ * depends on the previous event's chainHash. Processing in parallel would
+ * corrupt the audit trail.
+ *
+ * Processing continues even when individual events fail — errors are collected
+ * and returned in the `rejected` list alongside accepted results.
+ */
+export async function ingestBatchEvents(params: BatchIngestParams): Promise<BatchIngestResult> {
+  const { events, actor, network } = params;
+  const startTime = Date.now();
+
+  const accepted: BatchIngestResult['accepted'] = [];
+  const rejected: BatchIngestResult['rejected'] = [];
+
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i];
+    try {
+      const result = await ingestEvent({ ...event, actor: actor as unknown as AuditActor, network });
+      accepted.push({
+        index: i,
+        eventId: result.eventId,
+        sequenceId: result.sequenceId,
+        chainHash: result.chainHash,
+        eventType: event.eventType,
+      });
+    } catch (err) {
+      rejected.push({
+        index: i,
+        error: err instanceof Error ? err.message : 'Unknown error',
+        eventType: event.eventType,
+        eventSequenceId: event.sequenceId !== undefined ? String(event.sequenceId) : undefined,
+      });
+    }
+  }
+
+  return {
+    accepted,
+    rejected,
+    summary: {
+      total: events.length,
+      accepted: accepted.length,
+      rejected: rejected.length,
+      processingTimeMs: Date.now() - startTime,
+    },
+  };
+}

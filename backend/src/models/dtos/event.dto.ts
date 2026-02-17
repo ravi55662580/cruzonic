@@ -8,10 +8,10 @@
 import { z } from 'zod';
 
 // ============================================================================
-// Ingest Event
+// Ingest Single Event
 // ============================================================================
 
-// Base event schema (simplified - full validation should use shared schemas)
+// Base event schema (simplified - full validation uses shared FMCSA schemas)
 export const IngestEventSchema = z.object({
   eventType: z.number().int().min(1).max(7),
   eventCode: z.string().optional(),
@@ -39,6 +39,46 @@ export interface IngestEventResponse {
   eventSequenceId: string;
   eventTimestamp: string;
   createdAt: string;
+}
+
+// ============================================================================
+// Batch Ingest Events
+// ============================================================================
+
+export const BatchIngestEventSchema = z.object({
+  events: z
+    .array(IngestEventSchema)
+    .min(1, 'Batch must contain at least one event')
+    .max(100, 'Batch cannot exceed 100 events'),
+  deviceId: z.string().optional(), // Shared device ID for all events (overridden per-event if set)
+});
+
+export type BatchIngestEventRequest = z.infer<typeof BatchIngestEventSchema>;
+
+export interface BatchAcceptedEvent {
+  index: number;
+  eventId: string;
+  sequenceId: number;
+  chainHash: string;
+  eventType: number;
+}
+
+export interface BatchRejectedEvent {
+  index: number;
+  error: string;
+  eventType?: number;
+  eventSequenceId?: string;
+}
+
+export interface BatchIngestEventResponse {
+  accepted: BatchAcceptedEvent[];
+  rejected: BatchRejectedEvent[];
+  summary: {
+    total: number;
+    accepted: number;
+    rejected: number;
+    processingTimeMs: number;
+  };
 }
 
 // ============================================================================

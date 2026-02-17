@@ -373,6 +373,88 @@ Include this ID when reporting issues.
           },
         },
       },
+      BatchIngestResponse: {
+        type: 'object',
+        description: 'Result of a batch event ingestion request',
+        properties: {
+          accepted: {
+            type: 'array',
+            description: 'Events that were successfully ingested',
+            items: {
+              type: 'object',
+              properties: {
+                index: {
+                  type: 'integer',
+                  description: 'Position of this event in the submitted batch (0-based)',
+                },
+                eventId: {
+                  type: 'string',
+                  format: 'uuid',
+                },
+                sequenceId: {
+                  type: 'integer',
+                  description: 'Allocated FMCSA sequence ID',
+                },
+                chainHash: {
+                  type: 'string',
+                  description: 'SHA-256 chain hash for audit trail continuity',
+                },
+                eventType: {
+                  type: 'integer',
+                  minimum: 1,
+                  maximum: 7,
+                },
+              },
+            },
+          },
+          rejected: {
+            type: 'array',
+            description: 'Events that failed processing with error details',
+            items: {
+              type: 'object',
+              properties: {
+                index: {
+                  type: 'integer',
+                  description: 'Position in the submitted batch (0-based)',
+                },
+                error: {
+                  type: 'string',
+                  description: 'Human-readable error message',
+                },
+                eventType: {
+                  type: 'integer',
+                  nullable: true,
+                },
+                eventSequenceId: {
+                  type: 'string',
+                  nullable: true,
+                },
+              },
+            },
+          },
+          summary: {
+            type: 'object',
+            properties: {
+              total: {
+                type: 'integer',
+                description: 'Total events submitted in this batch',
+              },
+              accepted: {
+                type: 'integer',
+                description: 'Number of successfully ingested events',
+              },
+              rejected: {
+                type: 'integer',
+                description: 'Number of failed events',
+              },
+              processingTimeMs: {
+                type: 'integer',
+                description: 'Total processing time in milliseconds',
+              },
+            },
+          },
+        },
+      },
       HOSStatus: {
         type: 'object',
         properties: {

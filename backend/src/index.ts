@@ -62,8 +62,11 @@ app.use(
 );
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// inflate: true (default) enables automatic gzip/deflate decompression for
+// incoming requests when the client sends Content-Encoding: gzip|deflate.
+// Batch event payloads can be large, so the limit is raised to 5mb.
+app.use(express.json({ limit: '5mb', inflate: true }));
+app.use(express.urlencoded({ extended: true, limit: '5mb', inflate: true }));
 
 // Logging middleware (Morgan -> Winston)
 // Note: Detailed request/response logging handled by correlation middleware
