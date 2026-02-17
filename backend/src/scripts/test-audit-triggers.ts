@@ -85,7 +85,9 @@ async function testAuditTriggers() {
     console.log(`   - Record ID: ${auditInsert.record_id}`);
     console.log(`   - Timestamp: ${auditInsert.changed_at}`);
     console.log(`   - New values: ${Object.keys(auditInsert.new_values || {}).length} fields`);
-    console.log(`   - Old values: ${auditInsert.old_values ? 'present' : 'null (correct for INSERT)'}`);
+    console.log(
+      `   - Old values: ${auditInsert.old_values ? 'present' : 'null (correct for INSERT)'}`
+    );
   }
   console.log();
 
@@ -217,10 +219,7 @@ async function testAuditTriggers() {
   console.log('TEST 4: DELETE Operation (Remove Vehicle)');
   console.log('─'.repeat(80));
 
-  const { error: deleteError } = await supabase
-    .from('vehicles')
-    .delete()
-    .eq('id', testVehicleId);
+  const { error: deleteError } = await supabase.from('vehicles').delete().eq('id', testVehicleId);
 
   if (deleteError) {
     console.log('⚠️  Failed to delete vehicle:', deleteError.message);
@@ -245,7 +244,9 @@ async function testAuditTriggers() {
     console.log('✅ Audit log captured DELETE:');
     console.log(`   - Operation: ${auditDelete.operation}`);
     console.log(`   - Old values: ${Object.keys(auditDelete.old_values || {}).length} fields`);
-    console.log(`   - New values: ${auditDelete.new_values ? 'present' : 'null (correct for DELETE)'}`);
+    console.log(
+      `   - New values: ${auditDelete.new_values ? 'present' : 'null (correct for DELETE)'}`
+    );
     console.log(`   - Deleted VIN: ${auditDelete.old_values?.vin}`);
   }
   console.log();
@@ -314,13 +315,10 @@ async function testAuditTriggers() {
   console.log('TEST 7: Search Audit Logs Function');
   console.log('─'.repeat(80));
 
-  const { data: searchResults, error: searchError } = await supabase.rpc(
-    'search_audit_logs',
-    {
-      p_table_name: 'carriers',
-      p_carrier_id: testCarrierId,
-    }
-  );
+  const { data: searchResults, error: searchError } = await supabase.rpc('search_audit_logs', {
+    p_table_name: 'carriers',
+    p_carrier_id: testCarrierId,
+  });
 
   if (searchError) {
     console.log('⚠️  Search function not available:', searchError.message);

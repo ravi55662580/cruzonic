@@ -38,8 +38,8 @@ async function runMigration(name: string, sql: string): Promise<boolean> {
     // Split SQL into individual statements (simple split by semicolon)
     const statements = sql
       .split(';')
-      .map(s => s.trim())
-      .filter(s => s.length > 0 && !s.startsWith('--'));
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && !s.startsWith('--'));
 
     let successCount = 0;
     let errorCount = 0;
@@ -108,13 +108,14 @@ async function main() {
 
       // Note: Supabase doesn't have a built-in exec_sql RPC by default
       // We'll need to use a different approach
-      console.log(`\n⚠️  Cannot execute via RPC - Supabase doesn't support arbitrary SQL execution via API`);
+      console.log(
+        `\n⚠️  Cannot execute via RPC - Supabase doesn't support arbitrary SQL execution via API`
+      );
       console.log(`   You need to run this manually in Supabase SQL Editor:`);
       console.log(`   1. Go to https://supabase.com/dashboard`);
       console.log(`   2. Navigate to SQL Editor`);
       console.log(`   3. Copy and paste the contents of: ${migration.file}`);
       console.log(`   4. Click "Run"`);
-
     } catch (error: any) {
       console.error(`❌ Error reading migration file: ${error.message}`);
     }

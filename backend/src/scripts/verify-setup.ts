@@ -109,8 +109,7 @@ async function verifySetup() {
   console.log('═'.repeat(80) + '\n');
 
   const allChecks = Object.values(checks).every((v) => v);
-  const readyForLoadTest =
-    checks.connection && checks.eldEventsTable && checks.partitionedTable;
+  const readyForLoadTest = checks.connection && checks.eldEventsTable && checks.partitionedTable;
 
   if (allChecks) {
     console.log('🎉 All checks passed! Ready for load testing.\n');
@@ -135,7 +134,9 @@ async function verifySetup() {
     if (!checks.eldEventsTable) {
       console.log('❌ Apply database migrations:');
       console.log('   1. Run: infra/supabase/migrations/20240110000000_complete_core_schema.sql');
-      console.log('   2. Run: infra/supabase/migrations/20240115000000_add_constraints_indexes.sql');
+      console.log(
+        '   2. Run: infra/supabase/migrations/20240115000000_add_constraints_indexes.sql'
+      );
       console.log('   3. Run: infra/supabase/migrations/20240120000000_partition_eld_events.sql');
       console.log();
     }

@@ -41,7 +41,16 @@ async function analyzeDataDistribution() {
   if (eventsByType) {
     console.log('Events by Type:');
     eventsByType.forEach((row: any) => {
-      const typeName = ['', 'DutyStatus', 'IntermediateLog', 'PersonalUse', 'Certification', 'Login', 'EnginePower', 'Malfunction'][row.event_type];
+      const typeName = [
+        '',
+        'DutyStatus',
+        'IntermediateLog',
+        'PersonalUse',
+        'Certification',
+        'Login',
+        'EnginePower',
+        'Malfunction',
+      ][row.event_type];
       console.log(`  Type ${row.event_type} (${typeName}): ${row.count.toLocaleString()} events`);
     });
     console.log();
@@ -202,7 +211,7 @@ async function analyzeQueryPatterns() {
     .lt('event_timestamp', tomorrow.toISOString())
     .limit(1000);
   const pattern1End = performance.now();
-  patterns.push({ name: 'Mobile: Today\'s events', time: pattern1End - pattern1Start });
+  patterns.push({ name: "Mobile: Today's events", time: pattern1End - pattern1Start });
 
   // Pattern 2: Dashboard - active drivers now
   const pattern2Start = performance.now();
@@ -243,7 +252,9 @@ function generateRecommendations(analysis: AnalysisResult): string[] {
   // Check query performance
   const slowQueries = analysis.queryPatterns.filter((q: any) => q.time > 200);
   if (slowQueries.length > 0) {
-    recommendations.push('🔧 Some queries are slow (>200ms). Review EXPLAIN plans and consider additional indexes.');
+    recommendations.push(
+      '🔧 Some queries are slow (>200ms). Review EXPLAIN plans and consider additional indexes.'
+    );
   }
 
   // Check partition health
@@ -259,19 +270,27 @@ function generateRecommendations(analysis: AnalysisResult): string[] {
     const stats = analysis.dataDistribution.eventsByDriver[0];
     const imbalance = (stats.max_per_driver - stats.min_per_driver) / stats.avg_per_driver;
     if (imbalance > 2) {
-      recommendations.push('⚖️  Uneven data distribution across drivers detected. Consider if this is expected.');
+      recommendations.push(
+        '⚖️  Uneven data distribution across drivers detected. Consider if this is expected.'
+      );
     }
   }
 
   // Index efficiency
-  const avgIndexTime = analysis.indexEfficiency.reduce((sum: number, r: any) => sum + r.time, 0) / analysis.indexEfficiency.length;
+  const avgIndexTime =
+    analysis.indexEfficiency.reduce((sum: number, r: any) => sum + r.time, 0) /
+    analysis.indexEfficiency.length;
   if (avgIndexTime > 100) {
-    recommendations.push('🔍 Average index lookup time >100ms. Verify indexes are being used with EXPLAIN.');
+    recommendations.push(
+      '🔍 Average index lookup time >100ms. Verify indexes are being used with EXPLAIN.'
+    );
   }
 
   // General recommendations
   recommendations.push('✅ Always include event_timestamp in WHERE clauses for partition pruning');
-  recommendations.push('✅ Run maintain_eld_events_partitions() monthly to create future partitions');
+  recommendations.push(
+    '✅ Run maintain_eld_events_partitions() monthly to create future partitions'
+  );
   recommendations.push('✅ Monitor partition sizes via eld_events_partition_info view');
 
   return recommendations;

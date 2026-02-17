@@ -37,9 +37,7 @@ function sha256(input: string): string {
 /**
  * Ingests a new ELD event with full audit trail and hash chain verification.
  */
-export async function ingestEvent(
-  params: IngestEventParams
-): Promise<IngestEventResult> {
+export async function ingestEvent(params: IngestEventParams): Promise<IngestEventResult> {
   const {
     eventType,
     eventSubType,
@@ -63,11 +61,7 @@ export async function ingestEvent(
   // Allocate or validate sequence ID
   let sequenceId: number;
   if (providedSequenceId !== undefined) {
-    const validation = await validateSequenceId(
-      eldDeviceId,
-      eventDate,
-      providedSequenceId
-    );
+    const validation = await validateSequenceId(eldDeviceId, eventDate, providedSequenceId);
     if (!validation.valid) {
       throw new Error(`Invalid sequence ID: ${validation.reason}`);
     }
@@ -152,8 +146,8 @@ export async function ingestEvent(
     if (error.message.includes('no partition') || error.message.includes('partition')) {
       throw new Error(
         `Failed to insert event: No partition exists for timestamp ${eventTimestamp}. ` +
-        `Run maintain_eld_events_partitions() to create missing partitions. ` +
-        `Original error: ${error.message}`
+          `Run maintain_eld_events_partitions() to create missing partitions. ` +
+          `Original error: ${error.message}`
       );
     }
     throw new Error(`Failed to insert event: ${error.message}`);

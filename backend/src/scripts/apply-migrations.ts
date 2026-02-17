@@ -105,7 +105,6 @@ async function runMigrations() {
     console.log('\nOnce migrations complete, run:');
     console.log('   npx ts-node src/scripts/verify-setup.ts');
     console.log();
-
   } catch (error: any) {
     console.error('\n❌ Error:', error.message);
     process.exit(1);

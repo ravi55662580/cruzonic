@@ -56,9 +56,7 @@ async function generateReport(): Promise<PerformanceReport> {
   };
 
   // Collect summary data
-  const { count } = await supabase
-    .from('eld_events')
-    .select('*', { count: 'exact', head: true });
+  const { count } = await supabase.from('eld_events').select('*', { count: 'exact', head: true });
 
   report.summary.totalEvents = count || 0;
 
@@ -140,9 +138,7 @@ async function generateReport(): Promise<PerformanceReport> {
     }
 
     if (report.performance.partitionCount < 3) {
-      report.bottlenecks.push(
-        '⚠️  Low partition count - verify partition maintenance is running'
-      );
+      report.bottlenecks.push('⚠️  Low partition count - verify partition maintenance is running');
     }
 
     // Check for future partitions
@@ -227,7 +223,9 @@ function formatReportConsole(report: PerformanceReport) {
   console.log(`  Total Events:        ${report.summary.totalEvents.toLocaleString()}`);
   console.log(`  Total Drivers:       ${report.summary.totalDrivers.toLocaleString()}`);
   console.log(`  Avg Events/Driver:   ${report.summary.avgEventsPerDriver.toLocaleString()}`);
-  console.log(`  Date Range:          ${report.summary.dateRange.start.split('T')[0]} to ${report.summary.dateRange.end.split('T')[0]}`);
+  console.log(
+    `  Date Range:          ${report.summary.dateRange.start.split('T')[0]} to ${report.summary.dateRange.end.split('T')[0]}`
+  );
   console.log();
 
   console.log('⚡ PERFORMANCE');
@@ -241,7 +239,9 @@ function formatReportConsole(report: PerformanceReport) {
     console.log('🗂️  PARTITIONS (Recent)');
     console.log('─'.repeat(80));
     report.partitionDetails.slice(0, 6).forEach((p) => {
-      console.log(`  ${p.name.padEnd(25)} ${p.size.padEnd(10)} ${(p.inserts || 0).toLocaleString()} events`);
+      console.log(
+        `  ${p.name.padEnd(25)} ${p.size.padEnd(10)} ${(p.inserts || 0).toLocaleString()} events`
+      );
     });
     console.log();
   }
@@ -277,7 +277,9 @@ function formatReportMarkdown(report: PerformanceReport): string {
   md.push(`| Total Events | ${report.summary.totalEvents.toLocaleString()} |`);
   md.push(`| Total Drivers | ${report.summary.totalDrivers.toLocaleString()} |`);
   md.push(`| Avg Events per Driver | ${report.summary.avgEventsPerDriver.toLocaleString()} |`);
-  md.push(`| Date Range | ${report.summary.dateRange.start.split('T')[0]} to ${report.summary.dateRange.end.split('T')[0]} |`);
+  md.push(
+    `| Date Range | ${report.summary.dateRange.start.split('T')[0]} to ${report.summary.dateRange.end.split('T')[0]} |`
+  );
   md.push('');
 
   md.push('## Performance Metrics\n');

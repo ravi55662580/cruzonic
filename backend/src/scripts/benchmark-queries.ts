@@ -389,7 +389,8 @@ async function explainQueries() {
   console.log();
 
   console.log('1. Driver Events (24 hours):');
-  console.log(`
+  console.log(
+    `
 EXPLAIN ANALYZE
 SELECT id, event_sequence_id, event_type, event_timestamp
 FROM eld_events
@@ -401,14 +402,16 @@ ORDER BY event_sequence_id;
 
 -- Should use: idx_eld_events_driver_timestamp_composite
 -- Expected: Index Scan, no Seq Scan
-  `.trim());
+  `.trim()
+  );
 
   console.log();
   console.log('─'.repeat(80));
   console.log();
 
   console.log('2. Current Duty Status:');
-  console.log(`
+  console.log(
+    `
 EXPLAIN ANALYZE
 SELECT duty_status, started_at
 FROM duty_status_records
@@ -419,14 +422,16 @@ LIMIT 1;
 
 -- Should use: idx_duty_status_driver_active (partial index)
 -- Expected: Index Scan with WHERE filter
-  `.trim());
+  `.trim()
+  );
 
   console.log();
   console.log('─'.repeat(80));
   console.log();
 
   console.log('3. Unidentified Records:');
-  console.log(`
+  console.log(
+    `
 EXPLAIN ANALYZE
 SELECT id, started_at, duration_minutes
 FROM unidentified_driver_records
@@ -437,7 +442,8 @@ ORDER BY started_at;
 
 -- Should use: idx_udr_aging (partial index)
 -- Expected: Index Scan on partial index
-  `.trim());
+  `.trim()
+  );
 
   console.log();
   console.log();
@@ -470,7 +476,8 @@ async function checkIndexes() {
 
   console.log('To verify indexes exist, run this in Supabase SQL Editor:');
   console.log();
-  console.log(`
+  console.log(
+    `
 SELECT
   tablename,
   indexname,
@@ -481,7 +488,8 @@ WHERE schemaname = 'public'
     ${expectedIndexes.map((idx) => `'${idx}'`).join(',\n    ')}
   )
 ORDER BY tablename, indexname;
-  `.trim());
+  `.trim()
+  );
 
   console.log();
   console.log('Expected: All indexes should be present.');

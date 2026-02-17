@@ -31,8 +31,9 @@ async function main() {
   console.log('TEST 1: Verify Partition Structure');
   console.log('─'.repeat(80));
 
-  const { data: partitions, error: partitionsError } = await supabase
-    .rpc('eld_events_partition_info' as any);
+  const { data: partitions, error: partitionsError } = await supabase.rpc(
+    'eld_events_partition_info' as any
+  );
 
   if (partitionsError) {
     // Try alternative query if view doesn't exist
@@ -46,7 +47,7 @@ async function main() {
         JOIN pg_class child ON pg_inherits.inhrelid = child.oid
         WHERE parent.relname = 'eld_events'
         ORDER BY child.relname
-      `
+      `,
     });
 
     if (altPartitions && altPartitions.length > 0) {
@@ -79,11 +80,13 @@ async function main() {
   console.log('─'.repeat(80));
 
   const testMonth = new Date('2026-01-01T00:00:00Z');
-  const { data: partitionName, error: createError } = await supabase
-    .rpc('create_eld_events_partition', {
+  const { data: partitionName, error: createError } = await supabase.rpc(
+    'create_eld_events_partition',
+    {
       partition_start: testMonth.toISOString(),
-      partition_end: new Date('2026-02-01T00:00:00Z').toISOString()
-    });
+      partition_end: new Date('2026-02-01T00:00:00Z').toISOString(),
+    }
+  );
 
   if (createError) {
     console.log(`❌ Failed to create partition: ${createError.message}`);
@@ -99,8 +102,7 @@ async function main() {
   console.log('TEST 3: Test Partition Maintenance');
   console.log('─'.repeat(80));
 
-  const { error: maintenanceError } = await supabase
-    .rpc('maintain_eld_events_partitions');
+  const { error: maintenanceError } = await supabase.rpc('maintain_eld_events_partitions');
 
   if (maintenanceError) {
     console.log(`❌ Maintenance failed: ${maintenanceError.message}`);
@@ -157,7 +159,7 @@ async function main() {
     console.log(`✅ Query succeeded, returned ${events?.length || 0} events`);
     if (events && events.length > 0) {
       console.log('   Sample event timestamps:');
-      events.slice(0, 3).forEach(e => {
+      events.slice(0, 3).forEach((e) => {
         console.log(`   - ${e.event_timestamp}`);
       });
     }
@@ -189,7 +191,7 @@ async function main() {
       GROUP BY tableoid
       ORDER BY partition
       LIMIT 5
-    `
+    `,
   });
 
   if (countError) {
@@ -213,7 +215,9 @@ async function main() {
   console.log('═'.repeat(80));
   console.log();
   console.log('Next Steps:');
-  console.log('1. Run EXPLAIN queries to verify partition pruning (see test_partition_pruning.sql)');
+  console.log(
+    '1. Run EXPLAIN queries to verify partition pruning (see test_partition_pruning.sql)'
+  );
   console.log('2. Set up cron job for maintain_eld_events_partitions()');
   console.log('3. Monitor partition sizes via eld_events_partition_info view');
   console.log('4. Test event ingestion across partition boundaries');

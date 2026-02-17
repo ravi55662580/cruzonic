@@ -392,11 +392,7 @@ function generateDriverShift(
   let longitude = -87.6298 + (Math.random() - 0.5) * 10;
   let prevChainHash = sha256(`genesis:${device.id}:${logPeriod.log_date_mmddyy}`);
 
-  const createEvent = (
-    type: number,
-    subType: number,
-    metadata: any = {}
-  ): GeneratedEvent => {
+  const createEvent = (type: number, subType: number, metadata: any = {}): GeneratedEvent => {
     const eventDate = formatDate(currentTime);
     const eventTime = formatTime(currentTime);
     const timezoneOffset = formatTimezoneOffset(currentTime);
@@ -590,10 +586,7 @@ async function measureInsertThroughput(events: GeneratedEvent[]): Promise<any> {
   };
 }
 
-async function measureQueryPerformance(
-  drivers: TestDriver[],
-  startDate: Date
-): Promise<any> {
+async function measureQueryPerformance(drivers: TestDriver[], startDate: Date): Promise<any> {
   log('Measuring query performance...');
 
   const metrics: any = {};
@@ -611,7 +604,9 @@ async function measureQueryPerformance(
     .limit(100);
   const timelineEnd = performance.now();
   metrics.singleDriverTimeline = timelineEnd - timelineStart;
-  log(`  Single driver timeline: ${metrics.singleDriverTimeline.toFixed(2)}ms (${timeline?.length || 0} events)`);
+  log(
+    `  Single driver timeline: ${metrics.singleDriverTimeline.toFixed(2)}ms (${timeline?.length || 0} events)`
+  );
 
   // 2. Multi-driver query (common in fleet dashboard)
   const multiStart = performance.now();
@@ -624,7 +619,9 @@ async function measureQueryPerformance(
     .limit(1000);
   const multiEnd = performance.now();
   metrics.multiDriverQuery = multiEnd - multiStart;
-  log(`  Multi-driver query: ${metrics.multiDriverQuery.toFixed(2)}ms (${multiDriver?.length || 0} events)`);
+  log(
+    `  Multi-driver query: ${metrics.multiDriverQuery.toFixed(2)}ms (${multiDriver?.length || 0} events)`
+  );
 
   // 3. Date range query (testing partition pruning)
   const rangeStart = performance.now();
@@ -718,9 +715,7 @@ async function measureStorageGrowth(): Promise<any> {
   }
 
   // Fallback: count rows only
-  const { count } = await supabase
-    .from('eld_events')
-    .select('*', { count: 'exact', head: true });
+  const { count } = await supabase.from('eld_events').select('*', { count: 'exact', head: true });
 
   return {
     tableSizeBytes: 0,
@@ -815,11 +810,15 @@ async function runLoadTest() {
 
   console.log('\n⚡ QUERY PERFORMANCE:');
   console.log('─'.repeat(80));
-  console.log(`  Single Driver Timeline (7 days):  ${queryMetrics.singleDriverTimeline.toFixed(2)}ms`);
+  console.log(
+    `  Single Driver Timeline (7 days):  ${queryMetrics.singleDriverTimeline.toFixed(2)}ms`
+  );
   console.log(`  Multi-Driver Query (1 day):       ${queryMetrics.multiDriverQuery.toFixed(2)}ms`);
   console.log(`  Date Range Query (30 days):       ${queryMetrics.dateRangeQuery.toFixed(2)}ms`);
   console.log(`  Partition Pruning (1 day):        ${queryMetrics.partitionPruning.toFixed(2)}ms`);
-  console.log(`  Hash Chain Verification:          ${queryMetrics.hashChainVerification.toFixed(2)}ms`);
+  console.log(
+    `  Hash Chain Verification:          ${queryMetrics.hashChainVerification.toFixed(2)}ms`
+  );
 
   console.log('\n💾 STORAGE METRICS:');
   console.log('─'.repeat(80));
@@ -840,7 +839,9 @@ async function runLoadTest() {
   const bottlenecks: string[] = [];
 
   if (insertMetrics.eventsPerSecond < 100) {
-    bottlenecks.push('⚠️  INSERT throughput below 100 events/sec - consider connection pooling or batch optimization');
+    bottlenecks.push(
+      '⚠️  INSERT throughput below 100 events/sec - consider connection pooling or batch optimization'
+    );
   }
 
   if (queryMetrics.singleDriverTimeline > 100) {

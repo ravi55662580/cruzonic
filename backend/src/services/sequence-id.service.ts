@@ -4,10 +4,7 @@ import { supabase } from '../config/supabase';
  * Allocates the next sequence ID for a given ELD device and log date.
  * Implements FMCSA sequence ID rules: 1-65535, monotonically increasing per device per day.
  */
-export async function allocateSequenceId(
-  eldDeviceId: string,
-  logDate: string
-): Promise<number> {
+export async function allocateSequenceId(eldDeviceId: string, logDate: string): Promise<number> {
   // Use Supabase RPC to atomically allocate next sequence ID
   const { data, error } = await supabase.rpc('allocate_next_sequence_id', {
     p_eld_device_id: eldDeviceId,
@@ -69,10 +66,7 @@ export async function validateSequenceId(
  * Detects gaps in sequence IDs for a given device and log date.
  * Returns array of missing sequence IDs.
  */
-export async function detectSequenceGaps(
-  eldDeviceId: string,
-  logDate: string
-): Promise<number[]> {
+export async function detectSequenceGaps(eldDeviceId: string, logDate: string): Promise<number[]> {
   const { data: events, error } = await supabase
     .from('eld_events')
     .select('event_sequence_id')

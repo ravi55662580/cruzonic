@@ -1,0 +1,685 @@
+{
+  "info": {
+    "name": "Cruzonic ELD API",
+    "_postman_id": "cruzonic-eld-api-v1",
+    "description": "Complete Postman collection for the Cruzonic ELD Backend API.\n\n## Setup\n\n1. Import this collection into Postman\n2. Create an environment with the following variables:\n   - `baseUrl` - API base URL (e.g., http://localhost:3000)\n   - `accessToken` - JWT access token (set automatically after login)\n   - `refreshToken` - Refresh token (set automatically after login)\n   - `driverId` - Driver UUID (set automatically after signup/login)\n   - `carrierId` - Carrier UUID for testing\n   - `deviceId` - ELD device ID for event ingestion\n\n## Authentication Flow\n\n1. Run \"Signup\" to create a test account\n2. Run \"Login\" to get access/refresh tokens\n3. Tokens are automatically saved to environment variables\n4. All authenticated requests use {{accessToken}} variable\n\n## Rate Limits\n\n- Auth endpoints: 10 req/min per IP\n- Event ingestion: 100 req/min per device\n- Query endpoints: 60 req/min per user\n- Strict endpoints: 20 req/min per user\n\n## Testing\n\nEach request includes test scripts to validate responses.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "apiVersion",
+      "value": "v1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Signup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has success property\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test(\"User created successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.user).to.have.property('id');",
+                  "    pm.expect(jsonData.data.user).to.have.property('email');",
+                  "    pm.environment.set(\"driverId\", jsonData.data.user.id);",
+                  "});",
+                  "",
+                  "pm.test(\"Has correlation ID\", function () {",
+                  "    pm.response.to.have.header(\"X-Correlation-Id\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.driver.{{$timestamp}}@example.com\",\n  \"password\": \"SecurePassword123!\",\n  \"full_name\": \"Test Driver\",\n  \"phone\": \"+1234567890\",\n  \"role\": \"driver\",\n  \"carrier_id\": \"{{carrierId}}\",\n  \"driver_details\": {\n    \"license_number\": \"D1234567\",\n    \"license_state\": \"CA\",\n    \"license_class\": \"A\",\n    \"license_expiry\": \"2025-12-31\",\n    \"home_terminal_timezone\": \"America/Los_Angeles\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "auth", "signup"]
+            },
+            "description": "Create a new user account (driver, fleet_manager, or admin)"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Login successful\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data).to.have.property('accessToken');",
+                  "    pm.expect(jsonData.data).to.have.property('refreshToken');",
+                  "    ",
+                  "    // Save tokens to environment",
+                  "    pm.environment.set(\"accessToken\", jsonData.data.accessToken);",
+                  "    pm.environment.set(\"refreshToken\", jsonData.data.refreshToken);",
+                  "    pm.environment.set(\"driverId\", jsonData.data.user.id);",
+                  "});",
+                  "",
+                  "pm.test(\"Token expires in 900 seconds\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.expiresIn).to.eql(900);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driver@example.com\",\n  \"password\": \"SecurePassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "auth", "login"]
+            },
+            "description": "Login with email and password to obtain JWT tokens"
+          }
+        },
+        {
+          "name": "Get Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Profile retrieved\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('id');",
+                  "    pm.expect(jsonData.data).to.have.property('email');",
+                  "    pm.expect(jsonData.data).to.have.property('role');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "auth", "me"]
+            },
+            "description": "Get current user profile (requires authentication)"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Tokens refreshed\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('accessToken');",
+                  "    pm.expect(jsonData.data).to.have.property('refreshToken');",
+                  "    ",
+                  "    // Update tokens",
+                  "    pm.environment.set(\"accessToken\", jsonData.data.accessToken);",
+                  "    pm.environment.set(\"refreshToken\", jsonData.data.refreshToken);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "auth", "refresh"]
+            },
+            "description": "Refresh access token using refresh token"
+          }
+        },
+        {
+          "name": "Change Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Password changed\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.message).to.include('Password changed');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"SecurePassword123!\",\n  \"newPassword\": \"NewSecurePassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/auth/change-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "auth", "change-password"]
+            },
+            "description": "Change user password (requires authentication)"
+          }
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Logout successful\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.message).to.include('Logged out');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "auth", "logout"]
+            },
+            "description": "Logout and revoke tokens"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "Ingest Event - Power Up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Event created\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('id');",
+                  "    pm.expect(jsonData.data.event_type).to.eql(5);",
+                  "});",
+                  "",
+                  "pm.test(\"Has rate limit headers\", function () {",
+                  "    pm.response.to.have.header(\"X-RateLimit-Limit\");",
+                  "    pm.response.to.have.header(\"X-RateLimit-Remaining\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-device-id",
+                "value": "{{deviceId}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": 5,\n  \"eventCode\": 1,\n  \"eventDate\": \"{{$isoTimestamp}}\",\n  \"eventTime\": \"{{$isoTimestamp}}\",\n  \"eventSequenceIdNumber\": 1,\n  \"eventRecordStatus\": 1,\n  \"eventRecordOrigin\": 1,\n  \"accumulatedVehicleMiles\": 0,\n  \"elapsedEngineHours\": 0,\n  \"eventLatitude\": 37.7749,\n  \"eventLongitude\": -122.4194,\n  \"distanceSinceLastValidCoordinates\": 0,\n  \"driverId\": \"{{driverId}}\",\n  \"deviceId\": \"{{deviceId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "events"]
+            },
+            "description": "Ingest ELD event (EventType 5 - Power Up)"
+          }
+        },
+        {
+          "name": "Ingest Event - Duty Status Change",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-device-id",
+                "value": "{{deviceId}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": 1,\n  \"eventCode\": 1,\n  \"eventDate\": \"{{$isoTimestamp}}\",\n  \"eventTime\": \"{{$isoTimestamp}}\",\n  \"eventSequenceIdNumber\": 2,\n  \"eventRecordStatus\": 1,\n  \"eventRecordOrigin\": 2,\n  \"accumulatedVehicleMiles\": 0,\n  \"elapsedEngineHours\": 0,\n  \"eventLatitude\": 37.7749,\n  \"eventLongitude\": -122.4194,\n  \"distanceSinceLastValidCoordinates\": 0,\n  \"driverId\": \"{{driverId}}\",\n  \"deviceId\": \"{{deviceId}}\",\n  \"locationDescription\": \"San Francisco, CA\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "events"]
+            },
+            "description": "Ingest duty status change event (EventType 1)"
+          }
+        },
+        {
+          "name": "Query Events",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Events retrieved\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/events?driverId={{driverId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "events"],
+              "query": [
+                {
+                  "key": "driverId",
+                  "value": "{{driverId}}"
+                }
+              ]
+            },
+            "description": "Query events for a driver"
+          }
+        },
+        {
+          "name": "Query Events with Date Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/events?driverId={{driverId}}&startDate=2026-02-01&endDate=2026-02-15",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "events"],
+              "query": [
+                {
+                  "key": "driverId",
+                  "value": "{{driverId}}"
+                },
+                {
+                  "key": "startDate",
+                  "value": "2026-02-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2026-02-15"
+                }
+              ]
+            },
+            "description": "Query events with date range filter"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Driver Logs",
+      "item": [
+        {
+          "name": "Get Daily Driver Log",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Log retrieved\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('driver');",
+                  "    pm.expect(jsonData.data).to.have.property('logDate');",
+                  "    pm.expect(jsonData.data).to.have.property('events');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/drivers/{{driverId}}/logs/021526",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "drivers", "{{driverId}}", "logs", "021526"]
+            },
+            "description": "Get daily driver log (MMDDYY format)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "HOS",
+      "item": [
+        {
+          "name": "Get HOS Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"HOS status retrieved\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('driver_id');",
+                  "    pm.expect(jsonData.data).to.have.property('current_status');",
+                  "    pm.expect(jsonData.data).to.have.property('remaining_time');",
+                  "    pm.expect(jsonData.data).to.have.property('violations');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/hos/{{driverId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "hos", "{{driverId}}", "status"]
+            },
+            "description": "Get current HOS status for a driver"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Certification",
+      "item": [
+        {
+          "name": "Certify Log",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Certification created\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('certification');",
+                  "    pm.expect(jsonData.data).to.have.property('eld_event');",
+                  "    pm.expect(jsonData.data).to.have.property('log_period');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driver_id\": \"{{driverId}}\",\n  \"certified_log_date\": \"021526\",\n  \"certification_type\": \"own_records\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/certify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "certify"]
+            },
+            "description": "Certify driver logs"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Output Files",
+      "item": [
+        {
+          "name": "Generate Output File",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Output file generated\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('record_id');",
+                  "    pm.expect(jsonData.data).to.have.property('download_url');",
+                  "    pm.expect(jsonData.data).to.have.property('content_sha256');",
+                  "    ",
+                  "    // Save record ID for retrieval",
+                  "    pm.environment.set(\"outputFileRecordId\", jsonData.data.record_id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driver_id\": \"{{driverId}}\",\n  \"log_date\": \"021526\",\n  \"format\": \"json\",\n  \"include_metadata\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/output-file/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "output-file", "generate"]
+            },
+            "description": "Generate FMCSA output file"
+          }
+        },
+        {
+          "name": "Get Output File",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Output file retrieved\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('record_id');",
+                  "    pm.expect(jsonData.data).to.have.property('download_url');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/output-file/{{outputFileRecordId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "output-file", "{{outputFileRecordId}}"]
+            },
+            "description": "Retrieve generated output file"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Service is healthy\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('healthy');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Health check endpoint"
+          }
+        }
+      ]
+    }
+  ]
+}
