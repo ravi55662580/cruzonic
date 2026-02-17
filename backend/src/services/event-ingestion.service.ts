@@ -6,6 +6,7 @@ import {
   NetworkContext,
 } from '../../../shared/src/eld/audit-trail';
 import { createHash } from 'crypto';
+import { retryWithBackoff } from './retry.service';
 
 interface IngestEventParams {
   eventType: number;
@@ -70,16 +71,23 @@ export async function ingestEvent(params: IngestEventParams): Promise<IngestEven
     sequenceId = await allocateSequenceId(eldDeviceId, eventDate);
   }
 
-  // Fetch previous event's chain hash
-  const { data: prevEvent } = await supabase
-    .from('eld_events')
-    .select('chain_hash')
-    .eq('eld_device_id', eldDeviceId)
-    .eq('log_period_id', logPeriodId)
-    .eq('event_record_status', 1)
-    .order('event_sequence_id', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Fetch previous event's chain hash (retry on transient DB/network errors)
+  const prevEvent = await retryWithBackoff(
+    async () => {
+      const { data, error } = await supabase
+        .from('eld_events')
+        .select('chain_hash')
+        .eq('eld_device_id', eldDeviceId)
+        .eq('log_period_id', logPeriodId)
+        .eq('event_record_status', 1)
+        .order('event_sequence_id', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    { context: `fetchChainHash:${eldDeviceId}` }
+  ).catch(() => null); // fallback to empty hash if all retries fail
 
   const prevChainHash = prevEvent?.chain_hash || '';
 
@@ -116,42 +124,49 @@ export async function ingestEvent(params: IngestEventParams): Promise<IngestEven
     network
   );
 
-  // Insert event
-  const { data: insertedEvent, error } = await supabase
-    .from('eld_events')
-    .insert({
-      event_type: eventType,
-      event_sub_type: eventSubType,
-      event_record_status: eventRecordStatus,
-      event_record_origin: eventRecordOrigin,
-      event_sequence_id: sequenceId,
-      event_date: eventDate,
-      event_time: eventTime,
-      timezone_offset: timezoneOffset,
-      event_timestamp: eventTimestamp,
-      log_period_id: logPeriodId,
-      eld_device_id: eldDeviceId,
-      driver_eld_account_id: driverEldAccountId,
-      carrier_dot_number: carrierDotNumber,
-      event_metadata: metadata,
-      content_hash: auditMetadata.contentHash,
-      chain_hash: auditMetadata.chainHash,
-      audit_metadata: auditMetadata,
-    })
-    .select('id, event_sequence_id, chain_hash')
-    .single();
+  // Insert event (retry on transient DB/network errors)
+  const insertedEvent = await retryWithBackoff(
+    async () => {
+      const { data, error } = await supabase
+        .from('eld_events')
+        .insert({
+          event_type: eventType,
+          event_sub_type: eventSubType,
+          event_record_status: eventRecordStatus,
+          event_record_origin: eventRecordOrigin,
+          event_sequence_id: sequenceId,
+          event_date: eventDate,
+          event_time: eventTime,
+          timezone_offset: timezoneOffset,
+          event_timestamp: eventTimestamp,
+          log_period_id: logPeriodId,
+          eld_device_id: eldDeviceId,
+          driver_eld_account_id: driverEldAccountId,
+          carrier_dot_number: carrierDotNumber,
+          event_metadata: metadata,
+          content_hash: auditMetadata.contentHash,
+          chain_hash: auditMetadata.chainHash,
+          audit_metadata: auditMetadata,
+        })
+        .select('id, event_sequence_id, chain_hash')
+        .single();
 
-  if (error) {
-    // Check for partition-related errors
-    if (error.message.includes('no partition') || error.message.includes('partition')) {
-      throw new Error(
-        `Failed to insert event: No partition exists for timestamp ${eventTimestamp}. ` +
-          `Run maintain_eld_events_partitions() to create missing partitions. ` +
-          `Original error: ${error.message}`
-      );
-    }
-    throw new Error(`Failed to insert event: ${error.message}`);
-  }
+      if (error) {
+        // Partition errors are non-retryable — surface immediately with a clear message
+        if (error.message.includes('no partition') || error.message.includes('partition')) {
+          throw new Error(
+            `Failed to insert event: No partition exists for timestamp ${eventTimestamp}. ` +
+              `Run maintain_eld_events_partitions() to create missing partitions. ` +
+              `Original error: ${error.message}`
+          );
+        }
+        throw new Error(`Failed to insert event: ${error.message}`);
+      }
+
+      return data;
+    },
+    { context: `insertEvent:${eldDeviceId}:seq${sequenceId}` }
+  );
 
   return {
     eventId: insertedEvent.id,

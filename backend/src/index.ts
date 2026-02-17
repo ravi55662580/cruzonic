@@ -32,6 +32,7 @@ import driverLogRoutes from './routes/driver-log.routes';
 import hosRoutes from './routes/hos.routes';
 import certificationRoutes from './routes/certification.routes';
 import outputFileRoutes from './routes/output-file.routes';
+import dlqRoutes from './routes/dlq.routes';
 import { HealthController } from './controllers/health.controller';
 import { asyncHandler } from './utils/async-handler';
 import { logger, stream } from './utils/logger';
@@ -108,6 +109,9 @@ app.use(`/api/${API_VERSION}/certify`, strictRateLimiter, certificationRoutes);
 
 // Output file generation (strict - 20 req/min per user, resource intensive)
 app.use(`/api/${API_VERSION}/output-file`, strictRateLimiter, outputFileRoutes);
+
+// DLQ admin API (strict rate limit - admin-only, protected by requireRole inside router)
+app.use(`/api/${API_VERSION}/admin/dlq`, strictRateLimiter, dlqRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

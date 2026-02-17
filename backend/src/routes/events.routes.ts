@@ -12,6 +12,8 @@ import { EventsController } from '../controllers/events.controller';
 import { validateRequest, validateBody } from '../middleware/validation';
 import { IngestEventSchema, GetEventsQuerySchema, BatchIngestEventSchema } from '../models/dtos/event.dto';
 import { validateSingleEventMiddleware } from '../middleware/event-validation';
+import { captureRawSingleEvent, captureRawBatchEvents } from '../middleware/raw-vault';
+import { idempotencyMiddleware } from '../middleware/idempotency';
 import { asyncHandler } from '../utils/async-handler';
 import { z } from 'zod';
 
@@ -77,6 +79,8 @@ const DeviceDateParamsSchema = z.object({
  */
 router.post(
   '/',
+  idempotencyMiddleware(),           // dedup retried requests before any processing
+  captureRawSingleEvent(),           // raw vault capture BEFORE Zod parsing
   validateBody(IngestEventSchema),
   validateSingleEventMiddleware(),
   asyncHandler(controller.ingestEvent.bind(controller))
@@ -225,6 +229,8 @@ router.post(
  */
 router.post(
   '/batch',
+  idempotencyMiddleware(),           // dedup retried requests before any processing
+  captureRawBatchEvents(),           // raw vault capture BEFORE Zod parsing
   validateBody(BatchIngestEventSchema),
   asyncHandler(controller.ingestBatchEvents.bind(controller))
 );

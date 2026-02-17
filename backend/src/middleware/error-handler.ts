@@ -9,6 +9,27 @@ import { ZodError } from 'zod';
 import { ApiError, ValidationError } from '../models/errors/api-error';
 import { errorResponse } from '../utils/response';
 import { logger } from '../utils/logger';
+import { markRawEventRejected, markRawEventFailed } from '../services/raw-vault.service';
+
+/**
+ * Updates the raw vault status for a single-event request that reached
+ * the error handler without the controller having already updated it.
+ * Fire-and-forget — must never throw or block the response.
+ */
+function updateRawVaultOnError(req: Request, err: Error, statusCode: number): void {
+  const rawVaultId: string | undefined = (req as any).rawVaultId;
+  const alreadyHandled: boolean = (req as any).rawVaultStatusHandled === true;
+
+  if (!rawVaultId || alreadyHandled) return;
+
+  const message = `${err.message} (HTTP ${statusCode})`;
+  const update =
+    statusCode >= 400 && statusCode < 500
+      ? markRawEventRejected(rawVaultId, message)
+      : markRawEventFailed(rawVaultId, message);
+
+  update.catch(() => {});
+}
 
 /**
  * Global error handler middleware
@@ -38,6 +59,7 @@ export function errorHandler(
       errors: validationError.details,
     });
 
+    updateRawVaultOnError(req, validationError, validationError.statusCode);
     errorResponse(res, validationError);
     return;
   }
@@ -53,6 +75,7 @@ export function errorHandler(
       stack: err.stack,
     });
 
+    updateRawVaultOnError(req, err, err.statusCode);
     errorResponse(res, err);
     return;
   }
@@ -64,6 +87,8 @@ export function errorHandler(
     path: req.path,
     method: req.method,
   });
+
+  updateRawVaultOnError(req, err, 500);
 
   // Don't expose internal error details in production
   const isDevelopment = process.env.NODE_ENV !== 'production';

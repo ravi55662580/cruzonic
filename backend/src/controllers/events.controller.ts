@@ -13,6 +13,11 @@ import { BaseController } from './base.controller';
 import type { AuthenticatedRequest } from '../middleware/auth';
 import { ingestEvent, getEventsByDevice, ingestBatchEvents } from '../services/event-ingestion.service';
 import { validateBatchEvents } from '../services/event-validation.service';
+import {
+  markRawEventProcessed,
+  updateBatchRawVaultStatuses,
+} from '../services/raw-vault.service';
+import { addToDLQ } from '../services/dlq.service';
 import { detectSequenceGaps } from '../services/sequence-id.service';
 import { logger } from '../utils/logger';
 import { AuthenticationError } from '../models/errors/api-error';
@@ -25,6 +30,7 @@ export class EventsController extends BaseController {
    */
   async ingestEvent(req: AuthenticatedRequest, res: Response): Promise<Response> {
     const eventData = req.body;
+    const rawVaultId: string | undefined = (req as any).rawVaultId;
 
     if (!req.user) {
       throw new AuthenticationError('User not authenticated');
@@ -34,9 +40,10 @@ export class EventsController extends BaseController {
       eventType: eventData.eventType,
       deviceId: eventData.eldDeviceId,
       userId: req.user.id,
+      rawVaultId,
     });
 
-    const result = await ingestEvent({
+    const ingestParams = {
       ...eventData,
       actor: {
         userId: req.user.id,
@@ -47,9 +54,41 @@ export class EventsController extends BaseController {
         ipAddress: req.ip || 'unknown',
         userAgent: req.headers['user-agent'] || 'unknown',
       },
-    });
+    };
 
-    logger.info('Event ingested successfully', { sequenceId: result.sequenceId });
+    let result: Awaited<ReturnType<typeof ingestEvent>>;
+    try {
+      result = await ingestEvent(ingestParams);
+    } catch (err) {
+      // Ingestion failed after all retries — route to DLQ (fire-and-forget)
+      const reason = err instanceof Error ? err.message : 'Unknown ingestion error';
+      addToDLQ({
+        originalPayload: ingestParams as Parameters<typeof ingestEvent>[0],
+        failureReason: reason,
+        sourceDeviceId: eventData.eldDeviceId || null,
+        sourceEndpoint: '/events',
+        rawVaultId: rawVaultId,
+      }).catch((dlqErr) => {
+        logger.error('Failed to add event to DLQ — event data may be lost', {
+          failureReason: reason,
+          dlqError: dlqErr instanceof Error ? dlqErr.message : String(dlqErr),
+          eldDeviceId: eventData.eldDeviceId,
+        });
+      });
+      throw err; // re-throw so error handler returns proper HTTP response
+    }
+
+    // Mark raw vault record as processed (fire-and-forget — must not delay response)
+    if (rawVaultId) {
+      markRawEventProcessed(rawVaultId, result.eventId).catch(() => {});
+      // Signal to error-handler that the vault was already updated
+      (req as any).rawVaultStatusHandled = true;
+    }
+
+    logger.info('Event ingested successfully', {
+      sequenceId: result.sequenceId,
+      rawVaultId,
+    });
 
     return this.created(res, result);
   }
@@ -142,6 +181,21 @@ export class EventsController extends BaseController {
         rejected: allRejectedResult.summary.rejected,
         processingTimeMs: allRejectedResult.summary.processingTimeMs,
       });
+
+      // Mark all vault records as rejected (fire-and-forget)
+      const rawVaultIdsAll: string[] | undefined = (req as any).rawVaultIds;
+      if (rawVaultIdsAll && rawVaultIdsAll.length > 0) {
+        updateBatchRawVaultStatuses(
+          preRejected
+            .filter((r) => rawVaultIdsAll[r.index])
+            .map((r) => ({
+              rawEventId: rawVaultIdsAll[r.index],
+              status: 'rejected' as const,
+              errorMessage: r.error,
+            }))
+        ).catch(() => {});
+      }
+
       return res.status(400).json({ success: false, data: allRejectedResult });
     }
 
@@ -193,6 +247,78 @@ export class EventsController extends BaseController {
       validationRejected: preRejected.length,
       processingTimeMs: finalResult.summary.processingTimeMs,
     });
+
+    // ── Update raw vault statuses (fire-and-forget, must not delay response) ─
+    const rawVaultIds: string[] | undefined = (req as any).rawVaultIds;
+    if (rawVaultIds && rawVaultIds.length > 0) {
+      const statusUpdates = [
+        // Accepted events → processed
+        ...finalResult.accepted.map((a) => ({
+          rawEventId: rawVaultIds[a.index],
+          status: 'processed' as const,
+          processedEventId: a.eventId,
+        })),
+        // Validation-rejected events → rejected
+        ...preRejected
+          .filter((r) => rawVaultIds[r.index])
+          .map((r) => ({
+            rawEventId: rawVaultIds[r.index],
+            status: 'rejected' as const,
+            errorMessage: r.error,
+          })),
+        // Ingestion-rejected events → failed
+        ...remappedIngestionRejected
+          .filter((r) => rawVaultIds[r.index])
+          .map((r) => ({
+            rawEventId: rawVaultIds[r.index],
+            status: 'failed' as const,
+            errorMessage: r.error,
+          })),
+      ];
+      updateBatchRawVaultStatuses(statusUpdates).catch(() => {});
+    }
+
+    // ── Route ingestion-rejected events to DLQ (fire-and-forget) ─────────────
+    // Only ingestion failures go to DLQ — validation errors (preRejected) are
+    // client mistakes and should not be retried automatically.
+    if (remappedIngestionRejected.length > 0) {
+      const actor = {
+        userId: req.user.id,
+        deviceId: resolvedDeviceId || 'unknown',
+        source: 'api' as const,
+      };
+      const network = {
+        ipAddress: req.ip || 'unknown',
+        userAgent: req.headers['user-agent'] || 'unknown',
+      };
+
+      Promise.allSettled(
+        remappedIngestionRejected.map((rejected) => {
+          const slot = validSlots.find((s) => s.originalIndex === rejected.index);
+          const eventPayload = slot?.event ?? normalisedEvents[rejected.index];
+          return addToDLQ({
+            originalPayload: {
+              ...(eventPayload as object),
+              actor,
+              network,
+            } as Parameters<typeof addToDLQ>[0]['originalPayload'],
+            failureReason: rejected.error,
+            sourceDeviceId: (eventPayload as Record<string, unknown>)?.eldDeviceId as string ?? resolvedDeviceId ?? null,
+            sourceEndpoint: '/events/batch',
+            batchIndex: rejected.index,
+            rawVaultId: rawVaultIds?.[rejected.index],
+          });
+        })
+      ).then((results) => {
+        const dlqFailed = results.filter((r) => r.status === 'rejected').length;
+        if (dlqFailed > 0) {
+          logger.error('Some batch ingestion failures could not be added to DLQ', {
+            totalFailed: remappedIngestionRejected.length,
+            dlqFailed,
+          });
+        }
+      }).catch(() => {});
+    }
 
     // 201 – all accepted; 207 – partial; 400 – all rejected
     if (finalResult.summary.rejected === 0) {
