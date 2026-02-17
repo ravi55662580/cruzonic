@@ -11,6 +11,7 @@ import { Router } from 'express';
 import { EventsController } from '../controllers/events.controller';
 import { validateRequest, validateBody } from '../middleware/validation';
 import { IngestEventSchema, GetEventsQuerySchema, BatchIngestEventSchema } from '../models/dtos/event.dto';
+import { validateSingleEventMiddleware } from '../middleware/event-validation';
 import { asyncHandler } from '../utils/async-handler';
 import { z } from 'zod';
 
@@ -77,6 +78,7 @@ const DeviceDateParamsSchema = z.object({
 router.post(
   '/',
   validateBody(IngestEventSchema),
+  validateSingleEventMiddleware(),
   asyncHandler(controller.ingestEvent.bind(controller))
 );
 
